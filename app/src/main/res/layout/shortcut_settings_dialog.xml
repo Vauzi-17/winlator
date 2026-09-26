@@ -127,40 +127,20 @@
                 android:visibility="visible" />   
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/LLGlibcShortcut"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/glibc_vulkan_driver" />
-
-            <Spinner
-                style="@style/ComboBox"
-                android:layout_width="match_parent"
-                android:id="@+id/SGlibcDriver" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/glibc_box64_version" />
-
-            <Spinner
-                style="@style/ComboBox"
-                android:layout_width="match_parent"
-                android:id="@+id/SGlibcBox64" />
-        </LinearLayout>
-
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/graphics_driver" />
 
+        <!-- Shown instead of the bionic row below for glibc containers -->
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:id="@+id/SGlibcDriver"
+            android:visibility="gone" />
+
         <LinearLayout
+            android:id="@+id/LLBionicGraphicsDriver"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -433,6 +413,13 @@
                         android:layout_width="match_parent"
                         android:entries="@array/box64_version_entries"
                         android:spinnerMode="dialog" />
+
+                    <!-- Shown instead of the spinner above for glibc containers -->
+                    <Spinner
+                        style="@style/ComboBox"
+                        android:id="@+id/SGlibcBox64"
+                        android:layout_width="match_parent"
+                        android:visibility="gone" />
 
                     <TextView
                         android:layout_width="wrap_content"

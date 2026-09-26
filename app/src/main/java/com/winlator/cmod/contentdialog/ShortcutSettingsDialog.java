@@ -199,7 +199,11 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final Spinner sGlibcDriver = findViewById(R.id.SGlibcDriver);
         final Spinner sGlibcBox64 = findViewById(R.id.SGlibcBox64);
         if (isGlibc) {
-            findViewById(R.id.LLGlibcShortcut).setVisibility(View.VISIBLE);
+            // One set of controls: the glibc variants replace the bionic graphics driver and Box64 version.
+            findViewById(R.id.LLBionicGraphicsDriver).setVisibility(View.GONE);
+            findViewById(R.id.SBox64Version).setVisibility(View.GONE);
+            sGlibcDriver.setVisibility(View.VISIBLE);
+            sGlibcBox64.setVisibility(View.VISIBLE);
             loadGlibcComponentSpinner(sGlibcDriver, GlibcComponentManager.Type.DRIVER, shortcut.getExtra("glibcDriver", null));
             loadGlibcComponentSpinner(sGlibcBox64, GlibcComponentManager.Type.BOX64, shortcut.getExtra("glibcBox64", null));
         }

@@ -1175,7 +1175,11 @@ public class ContainerDetailFragment extends Fragment {
             sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items));
             if (isEditMode()) AppUtils.setSpinnerSelectionFromValue(sWineVersion, container.getWineVersion());
             tvRuntimeInfo.setVisibility(glibc ? View.VISIBLE : View.GONE);
-            view.findViewById(R.id.LLGlibcDriver).setVisibility(glibc ? View.VISIBLE : View.GONE);
+            // One set of controls: the bionic or the glibc variant, depending on the runtime.
+            view.findViewById(R.id.LLBionicGraphicsDriver).setVisibility(glibc ? View.GONE : View.VISIBLE);
+            view.findViewById(R.id.LLGlibcGraphicsDriver).setVisibility(glibc ? View.VISIBLE : View.GONE);
+            view.findViewById(R.id.SBox64Version).setVisibility(glibc ? View.GONE : View.VISIBLE);
+            view.findViewById(R.id.LLGlibcBox64).setVisibility(glibc ? View.VISIBLE : View.GONE);
         };
 
         sGlibcDriver = view.findViewById(R.id.SGlibcDriver);

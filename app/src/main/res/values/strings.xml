@@ -143,7 +143,7 @@
     <string name="turnip_present_mode">Present Mode</string>
     <string name="turnip_max_device_memory">Max Device Memory</string>
     <string name="unable_to_create_container">Unable to create the container.</string>
-    <string name="glibc_runtime_info">Glibc: Linux side from brunodev85/winlator (Wine 10.10, Box64 0.4.4, Mesa Turnip + Zink). Requires an Adreno GPU. Audio always uses PulseAudio. Use the glibc driver, Box64 and Turnip settings below; adrenotools drivers, vkBasalt and the emulator settings only apply to Bionic.</string>
+    <string name="glibc_runtime_info">Glibc: Linux side from brunodev85/winlator (Wine 10.10, Box64 0.4.4, Mesa Turnip + Zink). Requires an Adreno GPU. Audio always uses PulseAudio. Graphics Driver and Box64 Version show the glibc options for this runtime.</string>
     <string name="glibc_runtime_unsupported">Glibc runtime is not available: the package name is too long (max %d characters).</string>
     <string name="installing_glibc_runtime">Installing glibc runtime…</string>
     <string name="removing_wine">Removing Wine…</string>

@@ -2,7 +2,7 @@ name: Android CI Bionic
 
 on:
   push:
-    branches: [ "winlator_bionic", "claude/**" ]
+    branches: [ "winlator_bionic" ]
   pull_request:
     branches: [ "winlator_bionic" ]
   workflow_dispatch:

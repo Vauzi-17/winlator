@@ -125,6 +125,7 @@ tasks.register("downloadProton") {
 // commit so the Linux side of the glibc mode is reproducible; files are verified by SHA-256.
 tasks.register("downloadGlibcRuntime") {
     def glibcAssetDir = new File(project.rootDir, ["app","src","main","assets","glibc"].join(File.separator))
+    File relocateStamp = new File(project.rootDir, ["app","asset-sources","relocate.txt.stamp"].join(File.separator))
     String baseUrl = "https://raw.githubusercontent.com/brunodev85/winlator-app/3981d86efa4f333b2a34a7da8b6521476cd8c8b9/app/src/main/assets/"
     def glibcFiles = [
         ["rootfs.tzst", "rootfs.tzst", "aeea2938cc63b0708cb2da999b5a0e3915229b6ab4eac13de061c87f34ffc1dc"],
@@ -159,7 +160,6 @@ tasks.register("downloadGlibcRuntime") {
         // instead of scanning the whole rootfs on install.
         File relocateList = new File(glibcAssetDir, "relocate.txt")
         String listId = glibcFiles.collect { it[2] }.join(",")
-        File relocateStamp = new File(project.rootDir, ["app","asset-sources","relocate.txt.stamp"].join(File.separator))
         if (!relocateList.exists() || !relocateStamp.exists() || relocateStamp.text != listId) {
             String prefix = "/data/data/com.winlator/files/rootfs"
             def paths = new TreeSet<String>()

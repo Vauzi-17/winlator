@@ -2,6 +2,10 @@ import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.security.MessageDigest
+import com.github.luben.zstd.ZstdOutputStream
+import org.tukaani.xz.XZInputStream
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import com.github.luben.zstd.ZstdInputStream
 
 buildscript {
     repositories {
@@ -13,6 +17,10 @@ buildscript {
         // Adjust Gradle plugin versions if needed
         classpath 'com.android.tools.build:gradle:8.8.0'
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
+        // Used to recompress the downloaded .txz assets as .tar.zst (much faster to extract on device)
+        classpath 'org.tukaani:xz:1.9'
+        classpath 'com.github.luben:zstd-jni:1.5.6-3'
+        classpath 'org.apache.commons:commons-compress:1.26.2'
     }
 
 }
@@ -22,12 +30,13 @@ plugins {
 }
 
 tasks.register("downloadImageFS") {
-    def assetDir = new File(project.rootDir, ["app","src","main","assets"].join(File.separator))
+    def assetDir = new File(project.rootDir, ["app","asset-sources"].join(File.separator))
     File imageFS = new File(assetDir, "imagefs.txz")
     String imageFSSHA256Sum = "https://gitlab.com/winlator3/winlator-extra/-/raw/main/imagefs/imagefs.txz.sha256sum"
     int parts = 4
 
     doLast {
+        assetDir.mkdirs()
         if (!imageFS.exists()) {
             println("ImageFS was not present, downloading...\n")
             FileOutputStream outputStream = new FileOutputStream(imageFS)
@@ -66,7 +75,7 @@ tasks.register("downloadImageFS") {
 }
 
 tasks.register("downloadProton") {
-    def assetDir = new File(project.rootDir, ["app","src","main","assets"].join(File.separator))
+    def assetDir = new File(project.rootDir, ["app","asset-sources"].join(File.separator))
     File protonARM64EC = new File(assetDir, "proton-9.0-arm64ec.txz")
     File protonX8664 = new File(assetDir, "proton-9.0-x86_64.txz")
     String protonARM64ECUrl = "https://gitlab.com/winlator3/winlator-extra/-/raw/main/proton/proton-9.0-arm64ec.txz"
@@ -145,12 +154,74 @@ tasks.register("downloadGlibcRuntime") {
                 }
             }
         }
+
+        // List the files that contain the rootfs prefix, so the device only rewrites those
+        // instead of scanning the whole rootfs on install.
+        File relocateList = new File(glibcAssetDir, "relocate.txt")
+        String listId = glibcFiles.collect { it[2] }.join(",")
+        File relocateStamp = new File(project.rootDir, ["app","asset-sources","relocate.txt.stamp"].join(File.separator))
+        if (!relocateList.exists() || !relocateStamp.exists() || relocateStamp.text != listId) {
+            String prefix = "/data/data/com.winlator/files/rootfs"
+            def paths = new TreeSet<String>()
+            glibcFiles.findAll { it[1].endsWith(".tzst") }.each { entry ->
+                new TarArchiveInputStream(new ZstdInputStream(new BufferedInputStream(new FileInputStream(new File(glibcAssetDir, entry[1])), 1 << 20))).withCloseable { tar ->
+                    def tarEntry
+                    while ((tarEntry = tar.getNextTarEntry()) != null) {
+                        if (!tarEntry.isFile()) continue
+                        byte[] data = tar.readAllBytes()
+                        if (new String(data, "ISO-8859-1").contains(prefix)) paths.add(tarEntry.getName().replaceFirst("^\\./", ""))
+                    }
+                }
+            }
+            relocateList.text = paths.join("\n")
+            relocateStamp.parentFile.mkdirs()
+            relocateStamp.text = listId
+            println("glibc relocation list: " + paths.size() + " files")
+        }
+    }
+}
+
+// xz decompresses ~7-8x slower than zstd, which dominated the first launch install time.
+// The downloaded .txz files are recompressed once (level 19) and only the .tar.zst ship in the APK.
+tasks.register("convertAssetsToZstd") {
+    def sourceDir = new File(project.rootDir, ["app","asset-sources"].join(File.separator))
+    def assetDir = new File(project.rootDir, ["app","src","main","assets"].join(File.separator))
+    def names = ["imagefs", "proton-9.0-x86_64", "proton-9.0-arm64ec"]
+
+    doLast {
+        names.each { name ->
+            File src = new File(sourceDir, name + ".txz")
+            File dst = new File(assetDir, name + ".tar.zst")
+            File stamp = new File(sourceDir, name + ".tar.zst.stamp")
+            String srcId = src.length() + ":" + src.lastModified()
+
+            // Old builds downloaded the .txz straight into the assets folder.
+            new File(assetDir, name + ".txz").delete()
+
+            if (dst.exists() && stamp.exists() && stamp.text == srcId) return
+
+            println("Recompressing " + src.name + " as " + dst.name + "...")
+            File tmp = new File(assetDir, dst.name + ".tmp")
+            new XZInputStream(new BufferedInputStream(new FileInputStream(src), 1 << 20)).withCloseable { input ->
+                def output = new ZstdOutputStream(new BufferedOutputStream(new FileOutputStream(tmp), 1 << 20), 19)
+                output.setWorkers(Runtime.getRuntime().availableProcessors())
+                output.withCloseable { out ->
+                    byte[] buffer = new byte[1 << 20]
+                    int read
+                    while ((read = input.read(buffer)) != -1) out.write(buffer, 0, read)
+                }
+            }
+            dst.delete()
+            if (!tmp.renameTo(dst)) throw new GradleException("Unable to write " + dst)
+            stamp.text = srcId
+        }
     }
 }
 
 tasks.register("prepareKotlinBuildScriptModel"){}
 downloadProton.dependsOn(downloadImageFS)
-preBuild.dependsOn(downloadProton)
+convertAssetsToZstd.dependsOn(downloadProton)
+preBuild.dependsOn(convertAssetsToZstd)
 preBuild.dependsOn(downloadGlibcRuntime)
 
 android {
@@ -206,6 +277,11 @@ android {
     }
 
     // If you want to be sure modern JNI packaging is used:
+    // Already-compressed archives: storing them avoids a second (deflate) decompression on device.
+    androidResources {
+        noCompress 'zst', 'tzst', 'txz', 'mp3'
+    }
+
     packagingOptions {
         jniLibs {
             useLegacyPackaging = true

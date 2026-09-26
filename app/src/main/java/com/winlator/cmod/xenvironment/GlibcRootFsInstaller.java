@@ -7,6 +7,10 @@ import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.TarCompressorUtils;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.HashSet;
+import java.util.Set;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -79,7 +83,7 @@ public abstract class GlibcRootFsInstaller {
         FileUtils.copy(context, GlibcRootFs.ASSETS_DIR + "/default.box64rc", box64RCFile);
         extractedFiles.add(box64RCFile);
 
-        relocate(extractedFiles, GlibcRootFs.ORIGINAL_PREFIX, rootFs.getRelocatedPrefix(), rootPath);
+        relocate(extractedFiles, GlibcRootFs.ORIGINAL_PREFIX, rootFs.getRelocatedPrefix(), rootPath, readRelocateList(context, rootPath));
 
         rootFs.getTmpDir().mkdirs();
         FileUtils.chmod(rootFs.getBox64File(), 0771);
@@ -92,11 +96,27 @@ public abstract class GlibcRootFsInstaller {
         return TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, GlibcRootFs.ASSETS_DIR + "/" + name, rootDir, listener);
     }
 
+    /** Absolute paths of the files known (at build time) to contain the prefix, or null to scan everything. */
+    private static Set<String> readRelocateList(Context context, String rootPath) {
+        try (InputStream in = context.getAssets().open(GlibcRootFs.ASSETS_DIR + "/relocate.txt")) {
+            Set<String> paths = new HashSet<>();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) paths.add(new File(rootPath, line.trim()).getPath());
+            }
+            return paths;
+        }
+        catch (IOException e) {
+            return null;
+        }
+    }
+
     /**
      * Rewrites every occurrence of {@code from} with {@code paddedTo} (same length) inside regular
      * files, and symlinks pointing into {@code from} to {@code realTo}.
      */
-    static void relocate(List<File> files, String from, String paddedTo, String realTo) {
+    static void relocate(List<File> files, String from, String paddedTo, String realTo, Set<String> onlyPaths) {
         byte[] needle = from.getBytes(StandardCharsets.US_ASCII);
         byte[] replacement = paddedTo.getBytes(StandardCharsets.US_ASCII);
         if (needle.length != replacement.length) throw new IllegalArgumentException("Relocated prefix must keep the same length");
@@ -111,6 +131,10 @@ public abstract class GlibcRootFsInstaller {
                     }
                 }
                 else if (file.isFile()) {
+                    String path = file.getPath().replace("/./", "/");
+                    // default.box64rc is copied, not extracted, so it is not in the build-time list.
+                    boolean fromArchive = !path.equals(new File(realTo, "etc/config.box64rc").getPath());
+                    if (onlyPaths != null && fromArchive && !onlyPaths.contains(path)) continue;
                     if (patchFile(file, needle, replacement)) patchedFiles++;
                 }
             }

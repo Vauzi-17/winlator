@@ -99,7 +99,8 @@ import com.winlator.cmod.winhandler.MouseEventFlags;
 import com.winlator.cmod.winhandler.TaskManagerDialog;
 import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xconnector.UnixSocketConfig;
-import com.winlator.cmod.xenvironment.GlibcDriverManager;
+import com.winlator.cmod.contentdialog.GlibcTurnipConfigDialog;
+import com.winlator.cmod.xenvironment.GlibcComponentManager;
 import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.GlibcRootFsInstaller;
 import com.winlator.cmod.xenvironment.ImageFs;
@@ -1138,6 +1139,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             envVars.putAll(container.getEnvVars());
 
             if (shortcut != null) envVars.putAll(shortcut.getExtra("envVars"));
+            // Applied after the container env vars, which usually set TU_DEBUG themselves.
+            if (container.isGlibcRuntime()) GlibcTurnipConfigDialog.setEnvVars(container.getExtra("glibcTurnipConfig"), envVars);
             guestProgramLauncherComponent.setDisplayConfig(this.displayConfig);
 
             if (!envVars.has("WINEESYNC")) {
@@ -1684,11 +1687,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private void setGlibcGraphicsDriverEnvVars() {
         GlibcRootFs glibcRootFs = GlibcRootFs.find(this);
-        GlibcDriverManager driverManager = new GlibcDriverManager(this);
+        GlibcComponentManager driverManager = new GlibcComponentManager(this, GlibcComponentManager.Type.DRIVER);
         String driver = container.getExtra("glibcDriver");
+        if (shortcut != null) driver = shortcut.getExtra("glibcDriver", driver);
         envVars.put("VK_ICD_FILENAMES", driverManager.getIcdFile(driver).getPath());
         if (driverManager.isInstalled(driver)) {
-            envVars.put("LD_LIBRARY_PATH", driverManager.getDriverDir(driver) + ":" + glibcRootFs.getLibDir());
+            envVars.put("LD_LIBRARY_PATH", driverManager.getComponentDir(driver) + ":" + glibcRootFs.getLibDir());
         }
         envVars.put("GALLIUM_DRIVER", "zink");
         envVars.put("ZINK_CONTEXT_THREADED", "1");

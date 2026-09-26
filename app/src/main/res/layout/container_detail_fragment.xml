@@ -168,6 +168,39 @@
                             style="@style/ListMenuButton"
                             android:id="@+id/BTRemoveGlibcDriver"
                             android:src="@drawable/icon_remove" />
+
+                        <ImageButton
+                            style="@style/ListMenuButton"
+                            android:id="@+id/BTGlibcTurnipConfig"
+                            android:src="@drawable/icon_settings" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/glibc_box64_version" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <Spinner
+                            style="@style/ComboBox"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:id="@+id/SGlibcBox64" />
+
+                        <ImageButton
+                            style="@style/ListMenuButton"
+                            android:id="@+id/BTImportGlibcBox64"
+                            android:src="@drawable/icon_add" />
+
+                        <ImageButton
+                            style="@style/ListMenuButton"
+                            android:id="@+id/BTRemoveGlibcBox64"
+                            android:src="@drawable/icon_remove" />
                     </LinearLayout>
                 </LinearLayout>
 

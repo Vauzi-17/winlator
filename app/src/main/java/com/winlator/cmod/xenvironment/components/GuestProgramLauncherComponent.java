@@ -30,6 +30,7 @@ import com.winlator.cmod.fexcore.FEXCorePreset;
 import com.winlator.cmod.fexcore.FEXCorePresetManager;
 import com.winlator.cmod.xconnector.UnixSocketConfig;
 import com.winlator.cmod.xenvironment.EnvironmentComponent;
+import com.winlator.cmod.xenvironment.GlibcComponentManager;
 import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.ImageFs;
 
@@ -451,10 +452,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         if (this.envVars != null) envVars.putAll(this.envVars);
 
+        String box64Name = container.getExtra("glibcBox64");
+        if (shortcut != null) box64Name = shortcut.getExtra("glibcBox64", box64Name);
+        File box64File = new GlibcComponentManager(context, GlibcComponentManager.Type.BOX64).getBox64File(box64Name);
+
         String command;
         String overriddenCommand = envVars.get("GUEST_PROGRAM_LAUNCHER_COMMAND");
         if (!overriddenCommand.isEmpty()) command = overriddenCommand.replace(";", " ").trim();
-        else command = glibcRootFs.getBox64File().getPath() + " " + guestExecutable;
+        else command = box64File.getPath() + " " + guestExecutable;
 
         Log.d("GuestProgramLauncherComponent", "Glibc command: " + command);
 

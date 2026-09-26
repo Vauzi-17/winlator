@@ -71,10 +71,26 @@ public class GlibcRootFs {
         return ORIGINAL_PREFIX.length() - "/data/data/".length() - ("/" + ROOT_DIR_NAME).length();
     }
 
+    /**
+     * Prefixes that glibc builds for Winlator are compiled against (brunodev 10+, older glibc
+     * Winlator, glibc cmod). Imported components are relocated from any of them that is long enough.
+     */
+    public static final String[] KNOWN_PREFIXES = {
+        ORIGINAL_PREFIX,
+        "/data/data/com.winlator/files/imagefs",
+        "/data/data/com.winlator.cmod/files/imagefs"
+    };
+
     /** Same length as {@link #ORIGINAL_PREFIX}, resolving to {@link #getRootDir()}. */
     public String getRelocatedPrefix() {
+        return getRelocatedPrefix(ORIGINAL_PREFIX.length());
+    }
+
+    /** A path of exactly {@code length} characters resolving to {@link #getRootDir()}, or null if too short. */
+    public String getRelocatedPrefix(int length) {
         String path = rootDir.getPath();
-        int padding = ORIGINAL_PREFIX.length() - path.length();
+        if (path.length() > length) return null;
+        int padding = length - path.length();
         StringBuilder sb = new StringBuilder(rootDir.getParent());
         for (int i = 0; i <= padding; i++) sb.append('/');
         sb.append(rootDir.getName());

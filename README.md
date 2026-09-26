@@ -29,7 +29,13 @@ Each container can use one of two runtimes, chosen when the container is created
 
 The glibc files are downloaded at build time from a pinned brunodev85/winlator-app commit (`downloadGlibcRuntime` Gradle task, SHA-256 verified) and installed on first use into `<app data dir>/g`.
 That rootfs has its original prefix (`/data/data/com.winlator/files/rootfs`) compiled into its binaries, so on install every occurrence is rewritten in place to the real path, padded with extra slashes to keep the same length.
-This keeps the glibc runtime working when the APK is renamed or cloned to another package name, as long as the package name is at most 23 characters long.
+This keeps the glibc runtime working when the APK is renamed or cloned to another package name, as long as the package name is at most 23 characters long.
+
+Glibc containers also offer:
+- **Glibc Vulkan Driver**: the bundled Turnip or an imported glibc driver (.tzst/.zip, any layout; bionic/adrenotools drivers are rejected).
+- **Glibc Box64 Version**: the bundled Box64 0.4.4 or an imported glibc Box64 build made for Winlator glibc.
+- **Turnip Settings**: render mode (SYSMEM/GMEM), present mode and max device memory.
+- Per-shortcut overrides of the driver and Box64 version (Shortcut Settings).
 
 # Useful Tips
 

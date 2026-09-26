@@ -48,6 +48,7 @@ import com.winlator.cmod.widget.CPUListView;
 import com.winlator.cmod.widget.EnvVarsView;
 import com.winlator.cmod.winhandler.WinHandler;
 
+import com.winlator.cmod.xenvironment.GlibcComponentManager;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -193,6 +194,15 @@ public class ShortcutSettingsDialog extends ContentDialog {
             });
             popupMenu.show();
         });
+
+        final boolean isGlibc = shortcut.container.isGlibcRuntime();
+        final Spinner sGlibcDriver = findViewById(R.id.SGlibcDriver);
+        final Spinner sGlibcBox64 = findViewById(R.id.SGlibcBox64);
+        if (isGlibc) {
+            findViewById(R.id.LLGlibcShortcut).setVisibility(View.VISIBLE);
+            loadGlibcComponentSpinner(sGlibcDriver, GlibcComponentManager.Type.DRIVER, shortcut.getExtra("glibcDriver", null));
+            loadGlibcComponentSpinner(sGlibcBox64, GlibcComponentManager.Type.BOX64, shortcut.getExtra("glibcBox64", null));
+        }
 
         FrameLayout fexcoreFL = findViewById(R.id.fexcoreFrame);
         String wineVersion = shortcut.container.getWineVersion();
@@ -452,6 +462,10 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
             String cpuList = cpuListView.getCheckedCPUListAsString();
             shortcut.putExtra("cpuList", cpuList);
+            if (isGlibc) {
+                shortcut.putExtra("glibcDriver", getGlibcComponentValue(sGlibcDriver));
+                shortcut.putExtra("glibcBox64", getGlibcComponentValue(sGlibcBox64));
+            }
 
             // Save all changes to the shortcut
             shortcut.saveData();
@@ -464,6 +478,25 @@ public class ShortcutSettingsDialog extends ContentDialog {
     }
 
     // Utility method to apply styles to dynamically added TextViews based on their content
+    /** Items: container setting, bundled, then imported ones. A null selection keeps the container setting. */
+    private void loadGlibcComponentSpinner(Spinner spinner, GlibcComponentManager.Type type, String value) {
+        ArrayList<String> items = new ArrayList<>();
+        items.add(getContext().getString(R.string.use_container_setting));
+        items.add(type.bundledName);
+        items.addAll(new GlibcComponentManager(getContext(), type).getInstalled());
+        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, items));
+        int position = 0;
+        if (value != null) position = value.isEmpty() ? 1 : Math.max(0, items.indexOf(value));
+        spinner.setSelection(position);
+    }
+
+    private static String getGlibcComponentValue(Spinner spinner) {
+        int position = spinner.getSelectedItemPosition();
+        if (position <= 0) return null;
+        if (position == 1) return GlibcComponentManager.BUNDLED;
+        return spinner.getSelectedItem().toString();
+    }
+
     private void applyFieldSetLabelStylesDynamically(ViewGroup rootView, boolean isDarkMode) {
         for (int i = 0; i < rootView.getChildCount(); i++) {
             View child = rootView.getChildAt(i);

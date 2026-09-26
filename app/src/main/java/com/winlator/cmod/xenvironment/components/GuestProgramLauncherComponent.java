@@ -11,6 +11,7 @@ import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.XServerDisplayActivity;
 import com.winlator.cmod.box64.Box64Preset;
+import com.winlator.cmod.box64.GlibcBox64Presets;
 import com.winlator.cmod.box64.Box64PresetManager;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.Shortcut;
@@ -432,7 +433,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             envVars.put("BOX64_LOG", "1");
             envVars.put("BOX64_DYNAREC_MISSING", "1");
         }
-        envVars.putAll(Box64PresetManager.getEnvVars("box64", context, box64Preset));
+        envVars.putAll(GlibcBox64Presets.getEnvVars(context, box64Preset));
         envVars.put("BOX64_RCFILE", glibcRootFs.getBox64RCFile().getPath());
         envVars.put("BOX64_LD_LIBRARY_PATH", glibcRootDir + "/lib/x86_64-linux-gnu");
 
@@ -446,6 +447,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("ANDROID_SYSVSHM_SERVER", glibcRootDir + UnixSocketConfig.GLIBC_SYSVSHM_SERVER_PATH);
         envVars.put("WINE_NO_DUPLICATE_EXPLORER", "1");
         envVars.put("WINE_DISABLE_FULLSCREEN_HACK", "1");
+        // Read by the glibc wine's mfplat (brunodev85 patch); without it some games crash right after DXGI init.
+        envVars.put("WINE_DO_NOT_CREATE_DXGI_DEVICE_MANAGER", "1");
 
         File shmDir = new File(glibcRootDir, "/tmp/shm");
         if (!shmDir.isDirectory()) shmDir.mkdirs();

@@ -133,6 +133,9 @@
     <string name="unable_to_remove_this_wine_version">Unable to remove this wine version</string>
     <string name="wine_version">Wine Version</string>
     <string name="runtime">Runtime</string>
+    <string name="glibc_vulkan_driver">Glibc Vulkan Driver</string>
+    <string name="glibc_driver_imported">Driver imported: %s</string>
+    <string name="glibc_driver_remove_confirm">Remove driver %s?</string>
     <string name="unable_to_create_container">Unable to create the container.</string>
     <string name="glibc_runtime_info">Glibc: Linux side from brunodev85/winlator (Wine 10.10, Box64 0.4.4, Mesa Turnip + Zink). Requires an Adreno GPU. PulseAudio is the recommended audio driver. Adrenotools drivers, vkBasalt, Box64 version and emulator settings only apply to Bionic.</string>
     <string name="glibc_runtime_unsupported">Glibc runtime is not available: the package name is too long (max %d characters).</string>

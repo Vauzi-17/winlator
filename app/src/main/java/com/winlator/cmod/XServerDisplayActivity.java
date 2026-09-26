@@ -99,6 +99,7 @@ import com.winlator.cmod.winhandler.MouseEventFlags;
 import com.winlator.cmod.winhandler.TaskManagerDialog;
 import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xconnector.UnixSocketConfig;
+import com.winlator.cmod.xenvironment.GlibcDriverManager;
 import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.GlibcRootFsInstaller;
 import com.winlator.cmod.xenvironment.ImageFs;
@@ -1679,7 +1680,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private void setGlibcGraphicsDriverEnvVars() {
         GlibcRootFs glibcRootFs = GlibcRootFs.find(this);
-        envVars.put("VK_ICD_FILENAMES", glibcRootFs.getRootDir() + "/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json");
+        GlibcDriverManager driverManager = new GlibcDriverManager(this);
+        String driver = container.getExtra("glibcDriver");
+        envVars.put("VK_ICD_FILENAMES", driverManager.getIcdFile(driver).getPath());
+        if (driverManager.isInstalled(driver)) {
+            envVars.put("LD_LIBRARY_PATH", driverManager.getDriverDir(driver) + ":" + glibcRootFs.getLibDir());
+        }
         envVars.put("GALLIUM_DRIVER", "zink");
         envVars.put("ZINK_CONTEXT_THREADED", "1");
         envVars.put("MESA_DEBUG", "silent");

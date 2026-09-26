@@ -68,6 +68,8 @@ import com.winlator.cmod.widget.ColorPickerView;
 import com.winlator.cmod.widget.EnvVarsView;
 import com.winlator.cmod.widget.ImagePickerView;
 import com.winlator.cmod.winhandler.WinHandler;
+import com.winlator.cmod.xenvironment.GlibcDriverManager;
+import java.util.concurrent.Executors;
 import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.ImageFs;
 import com.winlator.cmod.xserver.XKeycode;
@@ -92,6 +94,7 @@ public class ContainerDetailFragment extends Fragment {
     private final int containerId;
     private static Container container;
     private PreloaderDialog preloaderDialog;
+    private Spinner sGlibcDriver;
     private JSONArray gpuCards;
     private Callback<String> openDirectoryCallback;
 
@@ -228,6 +231,10 @@ public class ContainerDetailFragment extends Fragment {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (requestCode == MainActivity.OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
+            importGlibcDriver(data.getData());
+            return;
+        }
         if (requestCode == MainActivity.OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             if (data != null) {
                 Uri uri = data.getData();
@@ -602,6 +609,7 @@ public class ContainerDetailFragment extends Fragment {
                     container.setLC_ALL(lc_all);
                     container.setPrimaryController(primaryController);
                     container.setControllerMapping(controllerMapping);
+                    if (container.isGlibcRuntime()) container.putExtra("glibcDriver", getSelectedGlibcDriver());
                     container.saveData();
                     saveWineRegistryKeys(view);
                     getActivity().onBackPressed();
@@ -654,6 +662,10 @@ public class ContainerDetailFragment extends Fragment {
                     manager.createContainerAsync(data, contentsManager, (container) -> {
                         if (container != null) {
                             this.container = container;
+                            if (container.isGlibcRuntime()) {
+                                container.putExtra("glibcDriver", getSelectedGlibcDriver());
+                                container.saveData();
+                            }
                             saveWineRegistryKeys(view);
                         }
                         else AppUtils.showToast(context, R.string.unable_to_create_container);
@@ -1071,6 +1083,43 @@ public class ContainerDetailFragment extends Fragment {
         loadRuntimeSpinner(view, sWineVersion, wineVersions);
     }
 
+    private void loadGlibcDriverSpinner(String selected) {
+        ArrayList<String> items = new ArrayList<>();
+        items.add(GlibcDriverManager.BUNDLED_NAME);
+        items.addAll(new GlibcDriverManager(getContext()).getInstalledDrivers());
+        sGlibcDriver.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, items));
+        int position = selected != null && !selected.isEmpty() ? items.indexOf(selected) : 0;
+        sGlibcDriver.setSelection(Math.max(position, 0));
+    }
+
+    private String getSelectedGlibcDriver() {
+        if (sGlibcDriver == null || sGlibcDriver.getSelectedItemPosition() <= 0) return GlibcDriverManager.BUNDLED;
+        return sGlibcDriver.getSelectedItem().toString();
+    }
+
+    private void importGlibcDriver(Uri uri) {
+        final Context context = getContext();
+        preloaderDialog.show(R.string.loading);
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String message;
+            String imported = null;
+            try {
+                imported = new GlibcDriverManager(context).importDriver(uri);
+                message = getString(R.string.glibc_driver_imported, imported);
+            }
+            catch (GlibcDriverManager.ImportException e) {
+                message = e.getMessage();
+            }
+            final String finalMessage = message;
+            final String finalImported = imported;
+            getActivity().runOnUiThread(() -> {
+                preloaderDialog.close();
+                if (finalImported != null) loadGlibcDriverSpinner(finalImported);
+                AppUtils.showToast(context, finalMessage);
+            });
+        });
+    }
+
     private void loadRuntimeSpinner(final View view, final Spinner sWineVersion, final ArrayList<String> bionicWineVersions) {
         final Context context = getContext();
         final Spinner sRuntime = view.findViewById(R.id.SRuntime);
@@ -1092,7 +1141,28 @@ public class ContainerDetailFragment extends Fragment {
             sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items));
             if (isEditMode()) AppUtils.setSpinnerSelectionFromValue(sWineVersion, container.getWineVersion());
             tvRuntimeInfo.setVisibility(glibc ? View.VISIBLE : View.GONE);
+            view.findViewById(R.id.LLGlibcDriver).setVisibility(glibc ? View.VISIBLE : View.GONE);
         };
+
+        sGlibcDriver = view.findViewById(R.id.SGlibcDriver);
+        sGlibcDriver.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+        loadGlibcDriverSpinner(isEditMode() ? container.getExtra("glibcDriver") : GlibcDriverManager.BUNDLED);
+
+        view.findViewById(R.id.BTImportGlibcDriver).setOnClickListener((v) -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            getActivity().startActivityFromFragment(this, intent, MainActivity.OPEN_FILE_REQUEST_CODE);
+        });
+
+        view.findViewById(R.id.BTRemoveGlibcDriver).setOnClickListener((v) -> {
+            String driver = getSelectedGlibcDriver();
+            if (driver.isEmpty()) return;
+            ContentDialog.confirm(context, getString(R.string.glibc_driver_remove_confirm, driver), () -> {
+                new GlibcDriverManager(context).removeDriver(driver);
+                loadGlibcDriverSpinner(GlibcDriverManager.BUNDLED);
+            });
+        });
 
         sRuntime.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override

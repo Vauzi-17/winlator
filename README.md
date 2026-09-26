@@ -20,6 +20,17 @@ Winlator is an Android application that lets you to run Windows (x86_64) applica
 
 ----
 
+# Runtime: Bionic or Glibc
+
+Each container can use one of two runtimes, chosen when the container is created (Container Settings -> Runtime):
+
+- **Bionic** (default): the native Android runtime of this fork (Proton 9.0 x86_64/arm64ec, Box64/FEXCore bionic, adrenotools drivers).
+- **Glibc**: the Linux side of [brunodev85/winlator](https://github.com/brunodev85/winlator) (glibc, Wine 10.10, Box64 0.4.4, Mesa Turnip + Zink). The wineprefix still lives in the container, only the Linux runtime differs. Requires an Adreno GPU (Turnip); PulseAudio is the recommended audio driver.
+
+The glibc files are downloaded at build time from a pinned brunodev85/winlator-app commit (`downloadGlibcRuntime` Gradle task, SHA-256 verified) and installed on first use into `<app data dir>/g`.
+That rootfs has its original prefix (`/data/data/com.winlator/files/rootfs`) compiled into its binaries, so on install every occurrence is rewritten in place to the real path, padded with extra slashes to keep the same length.
+This keeps the glibc runtime working when the APK is renamed or cloned to another package name, as long as the package name is at most 23 characters long.
+
 # Useful Tips
 
 - If you are experiencing performance issues, try changing the Box86/Box64 preset in Container Settings -> Advanced Tab.
@@ -31,6 +42,7 @@ Winlator is an Android application that lets you to run Windows (x86_64) applica
 # Credits and Third-party apps
 - Ubuntu RootFs ([Focal Fossa](https://releases.ubuntu.com/focal))
 - Wine ([winehq.org](https://www.winehq.org/))
+- Glibc runtime (rootfs, Box64 glibc, Turnip/Zink) from [brunodev85/winlator](https://github.com/brunodev85/winlator), GLIBC patches by [Termux Pacman](https://github.com/termux-pacman/glibc-packages)
 - Box86/Box64 by [ptitseb](https://github.com/ptitSeb)
 - PRoot ([proot-me.github.io](https://proot-me.github.io))
 - Mesa (Turnip/Zink/VirGL) ([mesa3d.org](https://www.mesa3d.org))

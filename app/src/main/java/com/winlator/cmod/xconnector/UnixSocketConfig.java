@@ -10,6 +10,11 @@ public class UnixSocketConfig {
     public static final String PULSE_SERVER_PATH = "/usr/tmp/.sound/PS0";
     public static final String XSERVER_PATH = "/usr/tmp/.X11-unix/X0";
     public static final String VIRGL_SERVER_PATH = "/tmp/.virgl/V0";
+    // Socket paths relative to the glibc rootfs, they are compiled into its libraries.
+    public static final String GLIBC_SYSVSHM_SERVER_PATH = "/tmp/.sysvshm/SM0";
+    public static final String GLIBC_ALSA_SERVER_PATH = "/tmp/.sound/AS0";
+    public static final String GLIBC_PULSE_SERVER_PATH = "/tmp/.sound/PS0";
+    public static final String GLIBC_XSERVER_PATH = "/tmp/.X11-unix/X0";
     public final String path;
 
     private UnixSocketConfig(String path) {

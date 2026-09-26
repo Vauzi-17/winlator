@@ -13,6 +13,7 @@ import com.winlator.cmod.core.WineInfo;
 import com.winlator.cmod.core.WineThemeManager;
 import com.winlator.cmod.fexcore.FEXCorePreset;
 import com.winlator.cmod.winhandler.WinHandler;
+import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.ImageFs;
 
 import org.json.JSONException;
@@ -341,6 +342,10 @@ public class Container {
 
     public String getWineVersion() {
         return wineVersion;
+    }
+
+    public boolean isGlibcRuntime() {
+        return GlibcRootFs.isGlibcWineVersion(wineVersion);
     }
 
     public void setWineVersion(String wineVersion) {

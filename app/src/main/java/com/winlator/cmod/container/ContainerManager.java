@@ -13,6 +13,8 @@ import com.winlator.cmod.core.MSLink;
 import com.winlator.cmod.core.OnExtractFileListener;
 import com.winlator.cmod.core.TarCompressorUtils;
 import com.winlator.cmod.core.WineInfo;
+import com.winlator.cmod.xenvironment.GlibcRootFs;
+import com.winlator.cmod.xenvironment.GlibcRootFsInstaller;
 import com.winlator.cmod.xenvironment.ImageFs;
 
 import java.util.Arrays;
@@ -252,6 +254,8 @@ public class ContainerManager {
     }
 
     public boolean extractContainerPatternFile(Container container, String wineVersion, ContentsManager contentsManager, File containerDir, OnExtractFileListener onExtractFileListener) {
+        if (GlibcRootFs.isGlibcWineVersion(wineVersion)) return extractGlibcContainerPatternFile(containerDir, onExtractFileListener);
+
         WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
         String containerPattern = wineVersion + "_container_pattern.tzst";
         boolean result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, containerPattern, containerDir, onExtractFileListener);
@@ -276,6 +280,23 @@ public class ContainerManager {
         }
    
         return result;
+    }
+
+    private boolean extractGlibcContainerPatternFile(File containerDir, OnExtractFileListener onExtractFileListener) {
+        if (!GlibcRootFsInstaller.installIfNeeded(context, null)) return false;
+
+        boolean result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, GlibcRootFs.ASSETS_DIR + "/container_pattern.tzst", containerDir, onExtractFileListener);
+        if (!result) return false;
+
+        try {
+            WineInfo wineInfo = GlibcRootFs.find(context).getWineInfo();
+            extractCommonDlls(wineInfo, "x86_64-windows", "system32", containerDir, onExtractFileListener);
+            extractCommonDlls(wineInfo, "i386-windows", "syswow64", containerDir, onExtractFileListener);
+        }
+        catch (JSONException e) {
+            return false;
+        }
+        return true;
     }
 
     public Container getContainerForShortcut(Shortcut shortcut) {

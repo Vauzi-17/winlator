@@ -30,6 +30,7 @@ import com.winlator.cmod.fexcore.FEXCorePreset;
 import com.winlator.cmod.fexcore.FEXCorePresetManager;
 import com.winlator.cmod.xconnector.UnixSocketConfig;
 import com.winlator.cmod.xenvironment.EnvironmentComponent;
+import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.ImageFs;
 
 import java.io.BufferedReader;
@@ -154,6 +155,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     @Override
     public void start() {
         synchronized (lock) {
+            if (container != null && container.isGlibcRuntime()) {
+                pid = execGlibcGuestProgram();
+                return;
+            }
             if (wineInfo.isArm64EC())
                 extractEmulatorsDlls();
             else
@@ -400,6 +405,60 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
 
         return ProcessHelper.exec(command, envVars.toStringArray(), rootDir, (status) -> {
+            synchronized (lock) {
+                pid = -1;
+            }
+
+            if (terminationCallback != null)
+                terminationCallback.call(status);
+        });
+    }
+
+    /** Runs wine through the glibc rootfs (box64 glibc build), see {@link GlibcRootFs}. */
+    private int execGlibcGuestProgram() {
+        Context context = environment.getContext();
+        GlibcRootFs glibcRootFs = GlibcRootFs.find(context);
+        File glibcRootDir = glibcRootFs.getRootDir();
+        ImageFs imageFs = environment.getImageFs();
+
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean enableBox64Logs = preferences.getBoolean("enable_box64_logs", false);
+
+        EnvVars envVars = new EnvVars();
+        envVars.put("BOX64_NOBANNER", ProcessHelper.PRINT_DEBUG && enableBox64Logs ? "0" : "1");
+        envVars.put("BOX64_DYNAREC", "1");
+        if (enableBox64Logs) {
+            envVars.put("BOX64_LOG", "1");
+            envVars.put("BOX64_DYNAREC_MISSING", "1");
+        }
+        envVars.putAll(Box64PresetManager.getEnvVars("box64", context, box64Preset));
+        envVars.put("BOX64_RCFILE", glibcRootFs.getBox64RCFile().getPath());
+        envVars.put("BOX64_LD_LIBRARY_PATH", glibcRootDir + "/lib/x86_64-linux-gnu");
+
+        // The wineprefix stays in the bionic ImageFs (container dir), only the Linux side is glibc.
+        envVars.put("HOME", imageFs.home_path);
+        envVars.put("USER", ImageFs.USER);
+        envVars.put("TMPDIR", glibcRootFs.getTmpDir().getPath());
+        envVars.put("DISPLAY", ":0");
+        envVars.put("PATH", glibcRootFs.getWinePath() + "/bin:" + glibcRootDir + "/usr/local/bin:" + glibcRootDir + "/usr/bin");
+        envVars.put("LD_LIBRARY_PATH", glibcRootFs.getLibDir().getPath());
+        envVars.put("ANDROID_SYSVSHM_SERVER", glibcRootDir + UnixSocketConfig.GLIBC_SYSVSHM_SERVER_PATH);
+        envVars.put("WINE_NO_DUPLICATE_EXPLORER", "1");
+        envVars.put("WINE_DISABLE_FULLSCREEN_HACK", "1");
+
+        File shmDir = new File(glibcRootDir, "/tmp/shm");
+        if (!shmDir.isDirectory()) shmDir.mkdirs();
+
+        if (this.envVars != null) envVars.putAll(this.envVars);
+
+        String command;
+        String overriddenCommand = envVars.get("GUEST_PROGRAM_LAUNCHER_COMMAND");
+        if (!overriddenCommand.isEmpty()) command = overriddenCommand.replace(";", " ").trim();
+        else command = glibcRootFs.getBox64File().getPath() + " " + guestExecutable;
+
+        Log.d("GuestProgramLauncherComponent", "Glibc command: " + command);
+
+        return ProcessHelper.exec(command, envVars.toStringArray(), glibcRootDir, (status) -> {
             synchronized (lock) {
                 pid = -1;
             }

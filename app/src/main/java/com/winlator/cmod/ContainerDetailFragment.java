@@ -68,6 +68,7 @@ import com.winlator.cmod.widget.ColorPickerView;
 import com.winlator.cmod.widget.EnvVarsView;
 import com.winlator.cmod.widget.ImagePickerView;
 import com.winlator.cmod.winhandler.WinHandler;
+import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.ImageFs;
 import com.winlator.cmod.xserver.XKeycode;
 
@@ -642,7 +643,8 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("primaryController", primaryController);
                     data.put("controllerMapping", controllerMapping);
 
-                    preloaderDialog.show(R.string.creating_container);
+                    boolean installGlibc = GlibcRootFs.isGlibcWineVersion(data.getString("wineVersion")) && !GlibcRootFs.find(context).isValid();
+                    preloaderDialog.show(installGlibc ? R.string.installing_glibc_runtime : R.string.creating_container);
 
                     // Initialize ImageFs
                     File imageFsRoot = new File(context.getFilesDir(), "imagefs");
@@ -654,6 +656,7 @@ public class ContainerDetailFragment extends Fragment {
                             this.container = container;
                             saveWineRegistryKeys(view);
                         }
+                        else AppUtils.showToast(context, R.string.unable_to_create_container);
                         preloaderDialog.close();
                         getActivity().onBackPressed();
                     });
@@ -1065,8 +1068,47 @@ public class ContainerDetailFragment extends Fragment {
             wineVersions.add(ContentsManager.getEntryName(profile));
         for (ContentProfile profile : contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON))                                                      
         	wineVersions.add(ContentsManager.getEntryName(profile));
-        sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wineVersions));
-        if (isEditMode()) AppUtils.setSpinnerSelectionFromValue(sWineVersion, container.getWineVersion());
+        loadRuntimeSpinner(view, sWineVersion, wineVersions);
+    }
+
+    private void loadRuntimeSpinner(final View view, final Spinner sWineVersion, final ArrayList<String> bionicWineVersions) {
+        final Context context = getContext();
+        final Spinner sRuntime = view.findViewById(R.id.SRuntime);
+        final TextView tvRuntimeInfo = view.findViewById(R.id.TVRuntimeInfo);
+        final String[] runtimes = {"Bionic", "Glibc"};
+        final boolean glibcSupported = GlibcRootFs.find(context).isSupported();
+
+        sRuntime.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+        sRuntime.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, runtimes));
+        sRuntime.setEnabled(!isEditMode());
+        boolean isGlibc = isEditMode() && container.isGlibcRuntime();
+        sRuntime.setSelection(isGlibc ? 1 : 0, false);
+
+        final Runnable applyRuntime = () -> {
+            boolean glibc = sRuntime.getSelectedItemPosition() == 1;
+            ArrayList<String> items = new ArrayList<>();
+            if (glibc) items.add(GlibcRootFs.WINE_VERSION);
+            else items.addAll(bionicWineVersions);
+            sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items));
+            if (isEditMode()) AppUtils.setSpinnerSelectionFromValue(sWineVersion, container.getWineVersion());
+            tvRuntimeInfo.setVisibility(glibc ? View.VISIBLE : View.GONE);
+        };
+
+        sRuntime.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View v, int position, long id) {
+                if (position == 1 && !glibcSupported) {
+                    AppUtils.showToast(context, getString(R.string.glibc_runtime_unsupported, GlibcRootFs.getMaxPackageNameLength()));
+                    sRuntime.setSelection(0);
+                    return;
+                }
+                applyRuntime.run();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        applyRuntime.run();
     }
 
     public String getControllerMapping(View view) {

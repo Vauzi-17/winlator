@@ -99,6 +99,8 @@ import com.winlator.cmod.winhandler.MouseEventFlags;
 import com.winlator.cmod.winhandler.TaskManagerDialog;
 import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xconnector.UnixSocketConfig;
+import com.winlator.cmod.xenvironment.GlibcRootFs;
+import com.winlator.cmod.xenvironment.GlibcRootFsInstaller;
 import com.winlator.cmod.xenvironment.ImageFs;
 import com.winlator.cmod.xenvironment.XEnvironment;
 import com.winlator.cmod.xenvironment.components.ALSAServerComponent;
@@ -649,6 +651,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 simulateConfirmInputControlsDialog();
             }
             Executors.newSingleThreadExecutor().execute(() -> {
+                if (container.isGlibcRuntime() && !GlibcRootFsInstaller.installIfNeeded(this, null)) {
+                    AppUtils.showToast(this, R.string.unable_to_install_system_files);
+                    runOnUiThread(this::finish);
+                    return;
+                }
                 setupWineSystemFiles();
                 extractGraphicsDriverFiles();
                 changeWineAudioDriver();
@@ -1082,7 +1089,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             containerDataChanged = true;
         }
         
-        extractInputDLLs();
+        if (!container.isGlibcRuntime()) extractInputDLLs();
 
         if (containerDataChanged) container.saveData();
     }
@@ -1159,34 +1166,50 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         }
 
         // Create our overall XEnvironment with various components
+        boolean isGlibc = container != null && container.isGlibcRuntime();
+        String socketRootPath = rootPath;
+        String sysvshmServerPath = UnixSocketConfig.SYSVSHM_SERVER_PATH;
+        String xServerPath = UnixSocketConfig.XSERVER_PATH;
+        String alsaServerPath = UnixSocketConfig.ALSA_SERVER_PATH;
+        String pulseServerPath = UnixSocketConfig.PULSE_SERVER_PATH;
+        if (isGlibc) {
+            GlibcRootFs glibcRootFs = GlibcRootFs.find(this);
+            FileUtils.clear(glibcRootFs.getTmpDir());
+            socketRootPath = glibcRootFs.getRootDir().getPath();
+            sysvshmServerPath = UnixSocketConfig.GLIBC_SYSVSHM_SERVER_PATH;
+            xServerPath = UnixSocketConfig.GLIBC_XSERVER_PATH;
+            alsaServerPath = UnixSocketConfig.GLIBC_ALSA_SERVER_PATH;
+            pulseServerPath = UnixSocketConfig.GLIBC_PULSE_SERVER_PATH;
+        }
+
         environment = new XEnvironment(this, imageFs);
         environment.addComponent(
                 new SysVSharedMemoryComponent(
                         xServer,
-                        UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.SYSVSHM_SERVER_PATH)
+                        UnixSocketConfig.createSocket(socketRootPath, sysvshmServerPath)
                 )
         );
         environment.addComponent(
                 new XServerComponent(
                         xServer,
-                        UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.XSERVER_PATH)
+                        UnixSocketConfig.createSocket(socketRootPath, xServerPath)
                 )
         );
 
         // Audio driver logic
         if (audioDriver.equals("alsa")) {
-            envVars.put("ANDROID_ALSA_SERVER", rootPath + UnixSocketConfig.ALSA_SERVER_PATH);
+            envVars.put("ANDROID_ALSA_SERVER", socketRootPath + alsaServerPath);
             envVars.put("ANDROID_ASERVER_USE_SHM", "true");
             environment.addComponent(
                     new ALSAServerComponent(
-                            UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.ALSA_SERVER_PATH)
+                            UnixSocketConfig.createSocket(socketRootPath, alsaServerPath)
                     )
             );
         } else if (audioDriver.equals("pulseaudio")) {
-            envVars.put("PULSE_SERVER", rootPath + UnixSocketConfig.PULSE_SERVER_PATH);
+            envVars.put("PULSE_SERVER", socketRootPath + pulseServerPath);
             environment.addComponent(
                     new PulseAudioComponent(
-                            UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.PULSE_SERVER_PATH)
+                            UnixSocketConfig.createSocket(socketRootPath, pulseServerPath)
                     )
             );
         }
@@ -1567,6 +1590,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             envVars.put("MESA_VK_WSI_DEBUG", "sw");
         }
 
+        if (container.isGlibcRuntime()) {
+            setGlibcGraphicsDriverEnvVars();
+            return;
+        }
+
         envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
         envVars.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");
 
@@ -1647,6 +1675,22 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             envVars.put("ENABLE_VKBASALT", "1");
             envVars.put("VKBASALT_CONFIG", vkbasaltConfig);
         }
+    }
+
+    private void setGlibcGraphicsDriverEnvVars() {
+        GlibcRootFs glibcRootFs = GlibcRootFs.find(this);
+        envVars.put("VK_ICD_FILENAMES", glibcRootFs.getRootDir() + "/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json");
+        envVars.put("GALLIUM_DRIVER", "zink");
+        envVars.put("ZINK_CONTEXT_THREADED", "1");
+        envVars.put("MESA_DEBUG", "silent");
+        envVars.put("MESA_NO_ERROR", "1");
+        envVars.put("vblank_mode", "0");
+
+        String presentMode = graphicsDriverConfig.get("presentMode");
+        if (presentMode != null && !presentMode.isEmpty()) envVars.put("MESA_VK_WSI_PRESENT_MODE", presentMode);
+
+        if ("1".equals(graphicsDriverConfig.get("syncFrame"))) envVars.put("MESA_VK_WSI_DEBUG", "forcesync");
+        // vkBasalt and the adrenotools drivers are bionic builds and cannot be loaded by glibc processes.
     }
 
     @Override

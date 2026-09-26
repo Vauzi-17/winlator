@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import com.winlator.cmod.R;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
+import com.winlator.cmod.xenvironment.GlibcRootFs;
 import com.winlator.cmod.xenvironment.ImageFs;
 
 import java.io.File;
@@ -120,6 +121,8 @@ public class WineInfo implements Parcelable {
         String path = "";
 
         Log.d("WineInfo", "Creating WineInfo from identifier " + identifier);
+
+        if (GlibcRootFs.isGlibcWineVersion(identifier)) return GlibcRootFs.find(context).getWineInfo();
 
         if (identifier.equals(MAIN_WINE_VERSION.identifier())) return new WineInfo(MAIN_WINE_VERSION.type, MAIN_WINE_VERSION.version, MAIN_WINE_VERSION.arch, imageFs.getRootDir().getPath() + "/opt/" + MAIN_WINE_VERSION.identifier());
 

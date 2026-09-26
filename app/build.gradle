@@ -112,9 +112,46 @@ tasks.register("downloadProton") {
     }
 }
 
+// Glibc runtime (optional per-container runtime). Pinned to a specific brunodev85/winlator-app
+// commit so the Linux side of the glibc mode is reproducible; files are verified by SHA-256.
+tasks.register("downloadGlibcRuntime") {
+    def glibcAssetDir = new File(project.rootDir, ["app","src","main","assets","glibc"].join(File.separator))
+    String baseUrl = "https://raw.githubusercontent.com/brunodev85/winlator-app/3981d86efa4f333b2a34a7da8b6521476cd8c8b9/app/src/main/assets/"
+    def glibcFiles = [
+        ["rootfs.tzst", "rootfs.tzst", "aeea2938cc63b0708cb2da999b5a0e3915229b6ab4eac13de061c87f34ffc1dc"],
+        ["rootfs_patches.tzst", "rootfs_patches.tzst", "49ab7a5158ef7ccff5ae96dfd539df48483454ed11c0d6788a4f95e0104c864a"],
+        ["container_pattern.tzst", "container_pattern.tzst", "8ae3a4fee33e86da26826395650bb07c6f49ce94629ea4b9442bc633b6b8ca33"],
+        ["box64/box64-0.4.4.tzst", "box64.tzst", "e1a34fed50bb38ef7fbf51ad5e5b9a76ec4c8178f9cfb4b9f6def0497f2f446c"],
+        ["box64/default.box64rc", "default.box64rc", "77fec02b3c8f4bf03420647491e0e21187310ec6ddbc035306d887e79bce2d51"],
+        ["graphics_driver/turnip-26.2.0.tzst", "turnip.tzst", "1e5bd643d64b450960ea3208cc96599a4de577f178e9ba0843b1c37083ce50d2"],
+        ["graphics_driver/zink-22.2.5.tzst", "zink.tzst", "b9fc365f894a4b837cfd97861972e95c680b5e744691b508f49b9a06d9e3153c"]
+    ]
+
+    doLast {
+        glibcAssetDir.mkdirs()
+        glibcFiles.each { entry ->
+            File outFile = new File(glibcAssetDir, entry[1])
+            String expected = entry[2]
+            def sha256 = { File f ->
+                byte[] hash = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(f.toPath()))
+                return String.format("%064x", new BigInteger(1, hash))
+            }
+            if (!outFile.exists() || sha256(outFile) != expected) {
+                println("Downloading glibc runtime file " + entry[0] + "...")
+                new URL(baseUrl + entry[0]).withInputStream { i -> outFile.withOutputStream { it << i } }
+                if (sha256(outFile) != expected) {
+                    outFile.delete()
+                    throw new GradleException("Checksum mismatch for glibc runtime file " + entry[0])
+                }
+            }
+        }
+    }
+}
+
 tasks.register("prepareKotlinBuildScriptModel"){}
 downloadProton.dependsOn(downloadImageFS)
 preBuild.dependsOn(downloadProton)
+preBuild.dependsOn(downloadGlibcRuntime)
 
 android {
     namespace 'com.winlator.cmod'

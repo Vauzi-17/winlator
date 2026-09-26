@@ -160,6 +160,12 @@ public class Drawable extends XResource {
         if (onDrawListener != null) onDrawListener.run();
     }
     
+    /** Copies a whole linear buffer into the backing hardware buffer without notifying draw listeners. */
+    public void copyFromLinearBuffer(ByteBuffer data, short srcStride) {
+        copyArea1((short)0, (short)0, (short)0, (short)0, width, height, srcStride, getStride(), data, backingAHB);
+        data.rewind();
+    }
+
     public void updateDirect() {
         if (onDrawListener != null) onDrawListener.run();
     }

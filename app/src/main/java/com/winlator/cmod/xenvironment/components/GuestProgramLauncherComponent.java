@@ -458,7 +458,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         Log.d("GuestProgramLauncherComponent", "Glibc command: " + command);
 
-        return ProcessHelper.exec(command, envVars.toStringArray(), glibcRootDir, (status) -> {
+        // Start inside the ImageFs, which wine maps as Z:, like the bionic launcher does.
+        return ProcessHelper.exec(command, envVars.toStringArray(), imageFs.getRootDir(), (status) -> {
             synchronized (lock) {
                 pid = -1;
             }

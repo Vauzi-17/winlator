@@ -1,5 +1,9 @@
 package com.winlator.cmod.xserver.extensions;
 
+import android.system.OsConstants;
+import android.system.Os;
+import android.system.ErrnoException;
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.util.SparseArray;
 import com.winlator.cmod.renderer.GPUImage;
@@ -124,7 +128,8 @@ public class DRI3Extension implements Extension, XResourceManager.OnResourceLife
         if (pixmap != null) throw new BadIdChoice(pixmapId);
 
         int fd = inputStream.getAncillaryFd();
-        pixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fd, window);
+        if (isUnixSocket(fd)) pixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fd, window);
+        else pixmapFromMemoryFd(client, pixmapId, width, height, stride & 0xffff, 0, depth, fd, size & 0xffffffffL, window);
     }
 
     private void pixmapFromBuffers(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
@@ -156,12 +161,50 @@ public class DRI3Extension implements Extension, XResourceManager.OnResourceLife
         
         int fd = inputStream.getAncillaryFd();
 
-        pixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fd, window);
+        if (isUnixSocket(fd)) pixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fd, window);
+        else pixmapFromMemoryFd(client, pixmapId, width, height, stride, offset, depth, fd, (long)stride * height, window);
+    }
+
+    /**
+     * The bionic Vulkan wrapper sends a unix socket that hands over an AHardwareBuffer, while
+     * Mesa built for glibc (glibc runtime) sends a plain mappable buffer fd.
+     */
+    private static boolean isUnixSocket(int fd) {
+        try (ParcelFileDescriptor pfd = ParcelFileDescriptor.fromFd(fd)) {
+            return OsConstants.S_ISSOCK(Os.fstat(pfd.getFileDescriptor()).st_mode);
+        }
+        catch (IOException | ErrnoException e) {
+            return true;
+        }
+    }
+
+    private void pixmapFromMemoryFd(XClient client, int pixmapId, short width, short height, int stride, int offset, byte depth, int fd, long size, Window window) throws XRequestError {
+        try {
+            ByteBuffer data = SysVSharedMemory.mapSHMSegment(fd, size, offset, true);
+            if (data == null) throw new BadAlloc();
+
+            final short srcStride = (short)(stride / 4);
+            Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, width, height, depth);
+            drawable.setOnDrawListener(() -> {
+                drawable.copyFromLinearBuffer(data, srcStride);
+                client.xServer.windowManager.triggerOnUpdateWindowContentDirect(window, drawable);
+            });
+            drawable.setOnDestroyListener((d) -> SysVSharedMemory.unmapSHMSegment(data, size));
+            client.xServer.getXServerView().nativeAddDirectContent(window.id, drawable);
+            Pixmap pixmap = client.xServer.pixmapManager.createPixmap(drawable);
+            client.registerAsOwnerOfResource(pixmap);
+
+            directContents.put(pixmap.id, new DirectContent(window, pixmap));
+        }
+        finally {
+            XConnectorEpoll.closeFd(fd);
+        }
     }
     
     private void pixmapFromHardwareBuffer(XClient client, int pixmapId, short width, short height, byte depth, int fd, Window window) throws IOException, XRequestError {
         try {
             GPUImage gpuImage = new GPUImage(fd);
+            if (gpuImage.hardwareBufferPtr == 0) throw new BadAlloc();
             Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, width, height, depth);
             drawable.setGPUImage(gpuImage);
             drawable.setOnDrawListener(() -> client.xServer.windowManager.triggerOnUpdateWindowContentDirect(window, drawable));

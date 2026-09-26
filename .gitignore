@@ -15,3 +15,4 @@ app/src/main/assets/glibc/
 app/asset-sources/
 app/src/main/assets/*.tar.zst
 app/src/main/assets/*.tar.zst.tmp
+app/src/main/assets/dxwrapper/dxvk-2.4.1.tzst

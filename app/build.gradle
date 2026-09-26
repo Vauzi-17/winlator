@@ -126,6 +126,9 @@ tasks.register("downloadProton") {
 tasks.register("downloadGlibcRuntime") {
     def glibcAssetDir = new File(project.rootDir, ["app","src","main","assets","glibc"].join(File.separator))
     File relocateStamp = new File(project.rootDir, ["app","asset-sources","relocate.txt.stamp"].join(File.separator))
+    // DXVK 2.4.1 (brunodev85's default) as an extra DXVK version, usable by both runtimes.
+    File dxvk241 = new File(project.rootDir, ["app","src","main","assets","dxwrapper","dxvk-2.4.1.tzst"].join(File.separator))
+    String dxvk241SHA256 = "897cc48500241006c15c62f200e9a6e1ea8a674bd285da25df6f68fdcdbfe42e"
     String baseUrl = "https://raw.githubusercontent.com/brunodev85/winlator-app/3981d86efa4f333b2a34a7da8b6521476cd8c8b9/app/src/main/assets/"
     def glibcFiles = [
         ["rootfs.tzst", "rootfs.tzst", "aeea2938cc63b0708cb2da999b5a0e3915229b6ab4eac13de061c87f34ffc1dc"],
@@ -139,13 +142,13 @@ tasks.register("downloadGlibcRuntime") {
 
     doLast {
         glibcAssetDir.mkdirs()
+        def sha256 = { File f ->
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(f.toPath()))
+            return String.format("%064x", new BigInteger(1, hash))
+        }
         glibcFiles.each { entry ->
             File outFile = new File(glibcAssetDir, entry[1])
             String expected = entry[2]
-            def sha256 = { File f ->
-                byte[] hash = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(f.toPath()))
-                return String.format("%064x", new BigInteger(1, hash))
-            }
             if (!outFile.exists() || sha256(outFile) != expected) {
                 println("Downloading glibc runtime file " + entry[0] + "...")
                 new URL(baseUrl + entry[0]).withInputStream { i -> outFile.withOutputStream { it << i } }
@@ -153,6 +156,15 @@ tasks.register("downloadGlibcRuntime") {
                     outFile.delete()
                     throw new GradleException("Checksum mismatch for glibc runtime file " + entry[0])
                 }
+            }
+        }
+
+        if (!dxvk241.exists() || sha256(dxvk241) != dxvk241SHA256) {
+            println("Downloading DXVK 2.4.1...")
+            new URL(baseUrl + "dxwrapper/dxvk-2.4.1.tzst").withInputStream { i -> dxvk241.withOutputStream { it << i } }
+            if (sha256(dxvk241) != dxvk241SHA256) {
+                dxvk241.delete()
+                throw new GradleException("Checksum mismatch for DXVK 2.4.1")
             }
         }
 

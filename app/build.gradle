@@ -248,7 +248,8 @@ android {
         // We’re preserving Winlator’s request to keep targetSdkVersion at 28
         targetSdkVersion 28
 
-        versionCode 20
+        // CI builds count up with the run number so each one installs over the previous one.
+        versionCode 20 + (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toInteger()
         versionName "7.1.4x-cmod"
 
         // External native build from Winlator
@@ -272,10 +273,22 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    // A fixed key instead of the per-machine debug keystore (each CI runner generated a new one),
+    // so a new build can be installed over the previous one without uninstalling.
+    signingConfigs {
+        debug {
+            storeFile file('winlator-debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     // Keep Winlator’s buildTypes
     buildTypes {
         debug {
             minifyEnabled false
+            signingConfig signingConfigs.debug
         }
         // If you have a release build type, add it here
     }

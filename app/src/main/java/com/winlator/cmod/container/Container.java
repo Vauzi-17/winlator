@@ -570,6 +570,15 @@ public class Container {
         return cpuList;
     }
 
+    /** Default CPU list of shortcuts: every core but core 0, which is left to wine's own processes. */
+    public static String getFallbackShortcutCPUList() {
+        int numProcessors = Runtime.getRuntime().availableProcessors();
+        if (numProcessors < 2) return getFallbackCPUList();
+        String cpuList = "";
+        for (int i = 1; i < numProcessors; i++) cpuList += (!cpuList.isEmpty() ? "," : "")+i;
+        return cpuList;
+    }
+
     public static String getFallbackCPUListWoW64() {
         String cpuList = "";
         int numProcessors = Runtime.getRuntime().availableProcessors();

@@ -384,7 +384,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         });
 
         final CPUListView cpuListView = findViewById(R.id.CPUListView);
-        cpuListView.setCheckedCPUList(shortcut.getExtra("cpuList", shortcut.container.getCPUList(true)));
+        cpuListView.setCheckedCPUList(shortcut.getExtra("cpuList", Container.getFallbackShortcutCPUList()));
 
         setOnConfirmCallback(() -> {
             String name = etName.getText().toString().trim();

@@ -174,6 +174,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private DebugDialog debugDialog;
     private short taskAffinityMask = 0;
     private short taskAffinityMaskWoW64 = 0;
+    // Cores for wine's own processes (wineserver, services, explorer...) when launched from a shortcut.
+    private int systemAffinityMask = 0;
+    private static final String[] WINE_SYSTEM_PROCESSES = {"explorer.exe", "services.exe", "winedevice.exe", "plugplay.exe",
+            "svchost.exe", "rpcss.exe", "winhandler.exe", "tabtip.exe", "conhost.exe", "start.exe"};
     private int frameRatingWindowId = -1;
     private boolean cursorLock; // Flag to track if pointer capture was requested
     private final float[] xform = XForm.getInstance();
@@ -457,8 +461,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(container.getCPUListWoW64(true));
 
         if (shortcut != null) {
-            taskAffinityMask = (short) ProcessHelper.getAffinityMask(shortcut.getExtra("cpuList", container.getCPUList(true)));
+            taskAffinityMask = (short) ProcessHelper.getAffinityMask(shortcut.getExtra("cpuList", Container.getFallbackShortcutCPUList()));
             taskAffinityMaskWoW64 = taskAffinityMask;
+            // The whole wine process tree starts on the cores the game doesn't use; the game's
+            // process moves to its own cores when its window maps (assignTaskAffinity).
+            int allCores = ProcessHelper.getAffinityMask(Container.getFallbackCPUList());
+            if (taskAffinityMask != 0) systemAffinityMask = allCores & ~taskAffinityMask;
         }
 
         // Determine the class name for the startup workarounds
@@ -1165,6 +1173,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                             ? shortcut.getExtra("box64Preset", container.getBox64Preset())
                             : container.getBox64Preset()
             );
+
+            guestProgramLauncherComponent.setSystemAffinityMask(systemAffinityMask);
 
             guestProgramLauncherComponent.setFEXCorePreset(
                     shortcut != null
@@ -2061,6 +2071,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (taskAffinityMask == 0 || taskAffinityMaskWoW64 == 0) return;
         int processId = window.getProcessId();
         String className = window.getClassName();
+        if (systemAffinityMask != 0 && isWineSystemWindow(className)) return;
         int processAffinity = window.isWoW64() ? taskAffinityMaskWoW64 : taskAffinityMask;
 
         if (processId > 0) {
@@ -2069,6 +2080,14 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         else if (!className.isEmpty()) {
             winHandler.setProcessAffinity(window.getClassName(), processAffinity);
         }
+    }
+
+    private static boolean isWineSystemWindow(String className) {
+        String name = className.toLowerCase();
+        for (String process : WINE_SYSTEM_PROCESSES) {
+            if (name.contains(process)) return true;
+        }
+        return false;
     }
 
     private void changeFrameRatingVisibility(Window window, Property property) {

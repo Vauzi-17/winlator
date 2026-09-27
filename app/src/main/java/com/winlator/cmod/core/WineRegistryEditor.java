@@ -13,6 +13,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -181,6 +183,32 @@ public class WineRegistryEditor implements Closeable {
         for (byte b : bytes)
             data.append(String.format(Locale.ENGLISH, "%02x", Byte.toUnsignedInt(b)));
         setHexValue(key, name, data.toString());
+    }
+
+    public byte[] getHexValues(String key, String name) {
+        String value = getRawValue(key, name);
+        if (value == null || !(value.startsWith("hex:") || value.startsWith("hex("))) return null;
+
+        String[] items = value.replaceFirst("hex(\\([0-9a-fA-F]+\\))?:", "").replaceAll("\\\\\\s*", "").trim().split(",");
+        byte[] bytes = new byte[items.length];
+        for (int i = 0; i < items.length; i++) {
+            try {
+                bytes[i] = (byte)Integer.parseInt(items[i].trim(), 16);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return bytes;
+    }
+
+    /** Target of a registry link (e.g. "System\\ControlSet001" for "System\\CurrentControlSet"), or null. */
+    public String getSymlinkValue(String key, String name) {
+        byte[] bytes = getHexValues(key, name);
+        if (bytes == null) return null;
+        String target = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asCharBuffer().toString();
+        int nul = target.indexOf('\0');
+        if (nul != -1) target = target.substring(0, nul);
+        return target.replace("\\Registry\\Machine\\", "");
     }
 
     private String getRawValue(String key, String name) {

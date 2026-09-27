@@ -1,0 +1,87 @@
+name: Box64 Glibc
+
+# Builds Box64 for the glibc runtime like the bundled one (upstream Box64 built with WINLATOR_GLIBC
+# and BAD_SIGNAL, glibc 2.39, interpreter and runpath in brunodev85's rootfs prefix, which the app
+# relocates on import). Publishes a .tzst to import in Container settings -> Box64 (glibc).
+on:
+  push:
+    branches: [claude/winlator-bionic-glibc-option-a92alb]
+    paths: [.github/workflows/box64-glibc.yml]
+  workflow_dispatch:
+    inputs:
+      box64_ref:
+        description: "ptitSeb/box64 tag, branch or commit"
+        required: true
+        default: "main"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Ubuntu 24.04 ships glibc 2.39, the same as the glibc rootfs, so no newer symbol versions leak in.
+    runs-on: ubuntu-24.04
+    env:
+      BOX64_REF: ${{ inputs.box64_ref || 'main' }}
+      ROOTFS_PREFIX: /data/data/com.winlator/files/rootfs
+    steps:
+      - name: Install cross toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu zstd
+
+      - name: Checkout box64
+        uses: actions/checkout@v4
+        with:
+          repository: ptitSeb/box64
+          ref: ${{ env.BOX64_REF }}
+          path: box64
+          fetch-depth: 0
+
+      - name: Configure
+        run: |
+          cmake -S box64 -B build \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DARM_DYNAREC=ON -DWINLATOR_GLIBC=ON -DBAD_SIGNAL=ON \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--dynamic-linker=$ROOTFS_PREFIX/lib/ld-linux-aarch64.so.1 -Wl,-rpath,$ROOTFS_PREFIX/lib"
+
+      - name: Build
+        run: cmake --build build --target box64 -j"$(nproc)"
+
+      - name: Package
+        id: pkg
+        run: |
+          set -e
+          mkdir -p out
+          aarch64-linux-gnu-strip -o out/box64 build/box64
+          file out/box64
+          aarch64-linux-gnu-readelf -d out/box64 | grep -E "NEEDED|RUNPATH"
+          aarch64-linux-gnu-readelf -l out/box64 | grep "interpreter"
+          # Refuse to publish a binary needing a newer glibc than the rootfs (2.39).
+          newest=$(aarch64-linux-gnu-objdump -T out/box64 | grep -o "GLIBC_2\.[0-9]*" | sort -V -u | tail -1)
+          echo "Newest glibc symbol version: $newest"
+          [ "$(printf '%s\n' "$newest" GLIBC_2.39 | sort -V | tail -1)" = "GLIBC_2.39" ]
+
+          version="${BOX64_REF#v}"
+          version="${version//\//_}"
+          commit=$(git -C box64 rev-parse --short HEAD)
+          name="box64-${version}-${commit}-glibc.tzst"
+          tar -C out -c box64 | zstd -19 -T0 -o "$name"
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=box64-glibc-${version}-${commit}" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.pkg.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Box64 glibc ${{ env.BOX64_REF }} (${{ steps.pkg.outputs.commit }})
+          prerelease: true
+          body: |
+            Box64 `${{ env.BOX64_REF }}` (ptitSeb/box64 ${{ steps.pkg.outputs.commit }}) for the glibc runtime: WINLATOR_GLIBC + BAD_SIGNAL + ARM dynarec, glibc 2.39, linked for brunodev85's rootfs prefix (relocated by the app on import).
+            Import the .tzst in a glibc container's settings (Box64 -> import), then select it.
+          files: ${{ steps.pkg.outputs.file }}

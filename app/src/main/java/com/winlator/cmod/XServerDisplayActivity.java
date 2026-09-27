@@ -1134,7 +1134,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             guestProgramLauncherComponent.setContainer(this.container);
             guestProgramLauncherComponent.setWineInfo(this.wineInfo);
 
-            String guestExecutable = "wine explorer /desktop=shell," + xServer.screenInfo + " " + getWineStartCommand();
+            // Like brunodev85's Winlator, glibc shortcuts run without the Wine shell (taskbar, systray):
+            // explorer only enables it for the desktop name "shell".
+            String desktopName = container.isGlibcRuntime() && shortcut != null ? "nogui" : "shell";
+            String guestExecutable = "wine explorer /desktop=" + desktopName + "," + xServer.screenInfo + " " + getWineStartCommand();
 
             guestProgramLauncherComponent.setGuestExecutable(guestExecutable);
 

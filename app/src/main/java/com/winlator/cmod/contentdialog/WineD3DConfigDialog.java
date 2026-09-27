@@ -136,7 +136,9 @@ public class WineD3DConfigDialog extends ContentDialog {
 
     public static void setEnvVars(Context context, KeyValueSet config, EnvVars vars) {
         String deviceID = getDeviceIdFromGPUName(context, config.get("gpuName"));
-        String vendorID = getVendorIdFromGPUName(context, config.get("vendorID"));
+        // Both ids must come from the selected card: wined3d ignores a mismatched pair (e.g. Intel
+        // vendor with an NVIDIA device id) and falls back to guessing the card from GL strings.
+        String vendorID = getVendorIdFromGPUName(context, config.get("gpuName"));
         String wined3dConfig = "csmt=0x" + config.get("csmt") + ",strict_shader_math=0x" + config.get("strict_shader_math") + ",OffscreenRenderingMode=" + config.get("OffscreenRenderingMode") + ",VideoMemorySize=" + config.get("videoMemorySize") + ",VideoPciDeviceID=" + deviceID + ",VideoPciVendorID=" + vendorID + ",renderer=" + config.get("renderer");
         vars.put("WINE_D3D_CONFIG", wined3dConfig);
     }

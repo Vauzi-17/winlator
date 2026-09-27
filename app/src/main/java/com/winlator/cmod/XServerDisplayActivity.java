@@ -529,10 +529,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             Log.d("XServerDisplayActivity", "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut);
         }
         
-        // The glibc ALSA plugin speaks a newer aserver protocol than this app's ALSA server
-        // (it waits for replies that never come), so glibc containers use PulseAudio instead.
-        if (container.isGlibcRuntime() && audioDriver.equals("alsa")) audioDriver = "pulseaudio";
-
         if (displayDriver.toLowerCase().contains("displayx")) {
             this.displayConfig = DisplayXConfigDialog.parseConfig(displayConfig);
             this.performanceMode = this.displayConfig.get("performanceMode").equals("1") ? true : false;
@@ -1209,8 +1205,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             envVars.put("ANDROID_ALSA_SERVER", socketRootPath + alsaServerPath);
             envVars.put("ANDROID_ASERVER_USE_SHM", "true");
             environment.addComponent(
+                    // The glibc ALSA plugin speaks a newer aserver protocol than the bionic one.
                     new ALSAServerComponent(
-                            UnixSocketConfig.createSocket(socketRootPath, alsaServerPath)
+                            UnixSocketConfig.createSocket(socketRootPath, alsaServerPath), isGlibc
                     )
             );
         } else if (audioDriver.equals("pulseaudio")) {

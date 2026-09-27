@@ -1,0 +1,118 @@
+name: Box64 Bionic
+
+# Builds Box64 for the bionic runtime (Android linker, Termux-style wrappers like the bundled
+# 0.3.7) and publishes it as a .wcp that the app imports as Box64 content.
+on:
+  push:
+    branches: [claude/winlator-bionic-glibc-option-a92alb]
+    paths: [.github/workflows/box64-bionic.yml]
+  workflow_dispatch:
+    inputs:
+      box64_ref:
+        description: "ptitSeb/box64 tag, branch or commit"
+        required: true
+        default: "v0.4.4"
+      version_code:
+        description: "Content version code (bump to reinstall the same version)"
+        required: true
+        default: "1"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      API_LEVEL: 28
+      BOX64_REF: ${{ inputs.box64_ref || 'v0.4.4' }}
+      VERSION_CODE: ${{ inputs.version_code || '1' }}
+    steps:
+      - name: Checkout box64
+        uses: actions/checkout@v4
+        with:
+          repository: ptitSeb/box64
+          ref: ${{ env.BOX64_REF }}
+          path: box64
+          fetch-depth: 0
+
+      - name: Setup Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: false
+
+      - name: Build libandroid-sysv-semaphore (link dependency)
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          set -e
+          mkdir -p sysv-sem/include/sys sysv-sem/lib
+          base=https://raw.githubusercontent.com/termux/termux-packages/master/packages/libandroid-sysv-semaphore
+          curl -fsSL "$base/sys_sem.c" -o sysv-sem/sys_sem.c
+          curl -fsSL "$base/sys_sem.h" -o sysv-sem/include/sys/sem.h
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API_LEVEL}-clang"
+          "$CC" -D__USE_GNU -fPIC -O2 -Isysv-sem/include -c sysv-sem/sys_sem.c -o sysv-sem/sys_sem.o
+          "$CC" -shared -Wl,-soname,libandroid-sysv-semaphore.so sysv-sem/sys_sem.o -o sysv-sem/lib/libandroid-sysv-semaphore.so
+
+      - name: Configure
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          cmake -S box64 -B build \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-${API_LEVEL} \
+            -DANDROID=ON -DTERMUX=ON \
+            -DARM_DYNAREC=ON \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_EXE_LINKER_FLAGS="-L$GITHUB_WORKSPACE/sysv-sem/lib"
+
+      - name: Build
+        run: cmake --build build --target box64 -j"$(nproc)"
+
+      - name: Package .wcp
+        id: pkg
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
+          REF: ${{ env.BOX64_REF }}
+        run: |
+          set -e
+          mkdir -p wcp
+          "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" -o wcp/box64 build/box64
+          file wcp/box64
+          "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -d wcp/box64 | grep -E "NEEDED|RUNPATH" || true
+
+          version="${REF#v}"
+          version="${version//\//_}"
+          commit=$(git -C box64 rev-parse --short HEAD)
+          cat > wcp/profile.json <<EOF
+          {
+            "type": "Box64",
+            "versionName": "${version}-bionic",
+            "versionCode": ${VERSION_CODE},
+            "description": "Box64 ${REF} (${commit}) for the bionic runtime, Android API ${API_LEVEL}",
+            "files": [
+              {"source": "box64", "target": "\${bindir}/box64"}
+            ]
+          }
+          EOF
+          cat wcp/profile.json
+          name="box64-${version}-bionic-${VERSION_CODE}.wcp"
+          tar -C wcp -cJf "$name" profile.json box64
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=box64-bionic-${version}-${commit}" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.pkg.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Box64 bionic ${{ env.BOX64_REF }} (${{ steps.pkg.outputs.commit }})
+          prerelease: true
+          body: |
+            Box64 `${{ env.BOX64_REF }}` (ptitSeb/box64 ${{ steps.pkg.outputs.commit }}) built with NDK r27c for Android API ${{ env.API_LEVEL }} (ANDROID + TERMUX, ARM dynarec), like the bundled bionic Box64 0.3.7.
+            Import the .wcp in the app's Contents screen, then pick it as the Box64 version of a bionic x86_64 container.
+          files: ${{ steps.pkg.outputs.file }}

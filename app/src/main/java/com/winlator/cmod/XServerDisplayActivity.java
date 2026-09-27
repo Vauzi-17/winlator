@@ -106,6 +106,7 @@ import com.winlator.cmod.xenvironment.GlibcRootFsInstaller;
 import com.winlator.cmod.xenvironment.ImageFs;
 import com.winlator.cmod.xenvironment.XEnvironment;
 import com.winlator.cmod.xenvironment.components.ALSAServerComponent;
+import com.winlator.cmod.xenvironment.components.GlibcNetworkInfoComponent;
 import com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent;
 import com.winlator.cmod.xenvironment.components.PulseAudioComponent;
 import com.winlator.cmod.xenvironment.components.SysVSharedMemoryComponent;
@@ -1208,6 +1209,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                         UnixSocketConfig.createSocket(socketRootPath, xServerPath)
                 )
         );
+
+        // brunodev85's nsiproxy reads the network interfaces from the glibc rootfs (no netlink on Android).
+        if (isGlibc) environment.addComponent(new GlibcNetworkInfoComponent());
 
         // Audio driver logic
         if (audioDriver.equals("alsa")) {

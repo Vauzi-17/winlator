@@ -1230,6 +1230,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         environment.startEnvironmentComponents();
 
         // Start the WinHandler
+        winHandler.setGlibcProtocol(container.isGlibcRuntime());
         winHandler.start();
 
         if (wineRequestHandler != null) wineRequestHandler.start();

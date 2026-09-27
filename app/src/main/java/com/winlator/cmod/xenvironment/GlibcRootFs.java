@@ -145,6 +145,19 @@ public class GlibcRootFs {
         return new File(rootDir, "/etc/config.box64rc");
     }
 
+    /**
+     * The glibc rootfs only ships a few compiled locales (en_US, pt_BR, ru_RU). Like brunodev85's
+     * Winlator, fall back to en_US.UTF-8 for anything else (e.g. Android's legacy "in_ID"), since a
+     * locale glibc cannot load breaks locale-dependent code in some games.
+     */
+    public String resolveLocale(String lcAll) {
+        if (lcAll != null && !lcAll.isEmpty()) {
+            String name = lcAll.replaceAll("(?i)\\.utf-?8$", "");
+            if (new File(rootDir, "/usr/lib/locale/" + name + ".utf8").isDirectory()) return name + ".UTF-8";
+        }
+        return "en_US.UTF-8";
+    }
+
     public WineInfo getWineInfo() {
         return new WineInfo("wine", "10.10", "x86_64", getWinePath());
     }

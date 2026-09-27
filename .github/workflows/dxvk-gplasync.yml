@@ -1,0 +1,122 @@
+name: DXVK GPLAsync
+
+# Builds DXVK with Ph42oN's gplasync patch and, optionally, leegao's binary semaphore queue
+# fallback ("binsem", enabled at runtime with DXVK_DISABLE_TIMELINE_SEMAPHORES=1, a workaround
+# for the timeline semaphore FPS regression on Turnip/KGSL). Publishes a DXVK .wcp for the
+# app's Contents screen (x86_64 DLLs to system32, i386 DLLs to syswow64).
+on:
+  push:
+    branches: [claude/winlator-bionic-glibc-option-a92alb]
+    paths: [.github/workflows/dxvk-gplasync.yml]
+  workflow_dispatch:
+    inputs:
+      dxvk_ref:
+        description: "doitsujin/dxvk tag"
+        required: true
+        default: "v3.1.1"
+      gplasync_patch:
+        description: "Ph42oN/dxvk-gplasync patch version (patches/dxvk-gplasync-<version>.patch)"
+        required: true
+        default: "3.1.1-1"
+      binsem:
+        description: "Apply leegao's binary semaphore fallback"
+        type: boolean
+        default: true
+      version_code:
+        description: "Content version code (bump to reinstall the same version)"
+        required: true
+        default: "1"
+
+permissions:
+  contents: write
+
+env:
+  DXVK_REF: ${{ inputs.dxvk_ref || 'v3.1.1' }}
+  GPLASYNC: ${{ inputs.gplasync_patch || '3.1.1-1' }}
+  # inputs.binsem is empty on push; default to on there.
+  BINSEM: ${{ github.event_name == 'push' && 'true' || inputs.binsem }}
+  VERSION_CODE: ${{ inputs.version_code || '1' }}
+  BINSEM_REPO: https://github.com/leegao/dxvk
+  BINSEM_COMMIT: e950b4a90359acebf13f5a76cfa2cfaa7c238b74
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 meson ninja-build glslang-tools zstd
+
+      - name: Checkout DXVK
+        run: git clone --recursive --branch "$DXVK_REF" --depth 1 https://github.com/doitsujin/dxvk.git dxvk
+
+      - name: Apply patches
+        working-directory: dxvk
+        run: |
+          set -e
+          # The gplasync patch is published against a DXVK snapshot, allow context drift.
+          curl -fsSL -o ../gplasync.patch \
+            "https://gitlab.com/Ph42oN/dxvk-gplasync/-/raw/main/patches/dxvk-gplasync-${GPLASYNC}.patch"
+          patch -p1 --fuzz=3 --no-backup-if-mismatch < ../gplasync.patch
+          if [ "$BINSEM" = "true" ]; then
+            git -C .. init -q binsem-src
+            git -C ../binsem-src fetch -q --depth 2 "$BINSEM_REPO" "$BINSEM_COMMIT"
+            git -C ../binsem-src format-patch -1 FETCH_HEAD --stdout > ../binsem.patch
+            patch -p1 --fuzz=3 --no-backup-if-mismatch < ../binsem.patch
+          fi
+          if find . -name "*.rej" | grep -q .; then find . -name "*.rej"; exit 1; fi
+
+      - name: Build
+        working-directory: dxvk
+        run: |
+          set -e
+          meson setup --cross-file build-win64.txt --buildtype release -Dstrip=true build64
+          ninja -C build64
+          meson setup --cross-file build-win32.txt --buildtype release -Dstrip=true build32
+          ninja -C build32
+
+      - name: Package .wcp
+        id: pkg
+        run: |
+          set -e
+          mkdir -p wcp/system32 wcp/syswow64
+          dlls=""
+          for dll in $(cd dxvk/build64 && find . -name "*.dll" -printf "%f\n" | sort -u); do
+            cp "$(find dxvk/build64 -name "$dll" | head -1)" wcp/system32/
+            cp "$(find dxvk/build32 -name "$dll" | head -1)" wcp/syswow64/
+            dlls="$dlls $dll"
+          done
+          file wcp/system32/*.dll wcp/syswow64/*.dll
+
+          suffix="gplasync"
+          [ "$BINSEM" = "true" ] && suffix="gplasync-binsem"
+          version="${GPLASYNC}-${suffix}"
+          files=""
+          for dll in $dlls; do
+            files="$files{\"source\": \"system32/$dll\", \"target\": \"\${system32}/$dll\"},"
+            files="$files{\"source\": \"syswow64/$dll\", \"target\": \"\${syswow64}/$dll\"},"
+          done
+          desc="DXVK ${DXVK_REF} + gplasync ${GPLASYNC} (Ph42oN)"
+          [ "$BINSEM" = "true" ] && desc="$desc + binary semaphore fallback (leegao, set DXVK_DISABLE_TIMELINE_SEMAPHORES=1)"
+          printf '{\n  "type": "DXVK",\n  "versionName": "%s",\n  "versionCode": %s,\n  "description": "%s",\n  "files": [%s]\n}\n' \
+            "$version" "$VERSION_CODE" "$desc" "${files%,}" > wcp/profile.json
+          python3 -m json.tool wcp/profile.json
+
+          name="dxvk-${version}-${VERSION_CODE}.wcp"
+          tar -C wcp -cf - profile.json system32 syswow64 | zstd -19 -T0 -o "$name"
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=dxvk-${version}" >> "$GITHUB_OUTPUT"
+          echo "desc=$desc" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.pkg.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: DXVK ${{ env.DXVK_REF }} ${{ env.BINSEM == 'true' && 'gplasync binsem' || 'gplasync' }}
+          prerelease: true
+          body: |
+            ${{ steps.pkg.outputs.desc }}.
+            Import the .wcp in the app's Contents screen, then pick it as the container's DXVK version.
+          files: ${{ steps.pkg.outputs.file }}

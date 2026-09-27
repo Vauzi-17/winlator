@@ -1099,7 +1099,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
 
         // Set environment variables
-        envVars.put("LC_ALL", lc_all);
+        envVars.put("LC_ALL", container.isGlibcRuntime() ? GlibcRootFs.find(this).resolveLocale(lc_all) : lc_all);
         envVars.put("WINEPREFIX", imageFs.wineprefix);
 
         boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);

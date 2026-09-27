@@ -48,12 +48,13 @@ jobs:
           NDK: ${{ steps.ndk.outputs.ndk-path }}
         run: |
           set -e
-          mkdir -p sysv-sem/include/sys sysv-sem/lib
+          mkdir -p sysv-sem/lib
           base=https://raw.githubusercontent.com/termux/termux-packages/master/packages/libandroid-sysv-semaphore
+          # sys_sem.c includes "sys_sem.h" from its own directory.
           curl -fsSL "$base/sys_sem.c" -o sysv-sem/sys_sem.c
-          curl -fsSL "$base/sys_sem.h" -o sysv-sem/include/sys/sem.h
+          curl -fsSL "$base/sys_sem.h" -o sysv-sem/sys_sem.h
           CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API_LEVEL}-clang"
-          "$CC" -D__USE_GNU -fPIC -O2 -Isysv-sem/include -c sysv-sem/sys_sem.c -o sysv-sem/sys_sem.o
+          "$CC" -D__USE_GNU -fPIC -O2 -c sysv-sem/sys_sem.c -o sysv-sem/sys_sem.o
           "$CC" -shared -Wl,-soname,libandroid-sysv-semaphore.so sysv-sem/sys_sem.o -o sysv-sem/lib/libandroid-sysv-semaphore.so
 
       - name: Configure

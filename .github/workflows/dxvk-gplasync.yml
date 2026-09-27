@@ -15,7 +15,7 @@ on:
         required: true
         default: "v3.1.1"
       gplasync_patch:
-        description: "Ph42oN/dxvk-gplasync patch version (patches/dxvk-gplasync-<version>.patch)"
+        description: "Ph42oN/dxvk-gplasync patch (patches/dxvk-gplasync-<patch>.patch; v2.4.1 uses 2.4-1)"
         required: true
         default: "3.1.1-1"
       binsem:
@@ -59,6 +59,10 @@ jobs:
           curl -fsSL -o ../gplasync.patch \
             "https://gitlab.com/Ph42oN/dxvk-gplasync/-/raw/main/patches/dxvk-gplasync-${GPLASYNC}.patch"
           patch -p1 --fuzz=3 --no-backup-if-mismatch < ../gplasync.patch
+          # Ph42oN's releases also read a global dxvk.conf when no local one exists.
+          curl -fsSL -o ../global-conf.patch \
+            "https://gitlab.com/Ph42oN/dxvk-gplasync/-/raw/main/patches/global-dxvk.conf.patch"
+          patch -p1 --fuzz=3 --no-backup-if-mismatch < ../global-conf.patch
           if [ "$BINSEM" = "true" ]; then
             git -C .. init -q binsem-src
             git -C ../binsem-src fetch -q --depth 2 "$BINSEM_REPO" "$BINSEM_COMMIT"
@@ -91,7 +95,9 @@ jobs:
 
           suffix="gplasync"
           [ "$BINSEM" = "true" ] && suffix="gplasync-binsem"
-          version="${GPLASYNC}-${suffix}"
+          # Name after the DXVK release plus the patch revision: a patch can serve several DXVK
+          # point releases (Ph42oN's 2.4.1-1 is DXVK v2.4.1 with the 2.4-1 patch).
+          version="${DXVK_REF#v}-${GPLASYNC##*-}-${suffix}"
           files=""
           for dll in $dlls; do
             files="$files{\"source\": \"system32/$dll\", \"target\": \"\${system32}/$dll\"},"

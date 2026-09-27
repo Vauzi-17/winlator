@@ -4,6 +4,7 @@ import static com.winlator.cmod.inputcontrols.ExternalController.TRIGGER_IS_AXIS
 
 import android.content.SharedPreferences;
 import android.util.Log;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 
@@ -26,6 +27,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -58,6 +60,16 @@ public class WinHandler {
     private byte triggerType;
 
     private boolean xinputDisabled; // Used for exclusive mouse controllegacy
+
+    // The winebus "Winlator bus" of the glibc runtime's Wine (brunodev85) uses another gamepad
+    // protocol: GET_GAMEPAD is answered with 4 slots of 60 bytes and states are pushed as
+    // [GET_GAMEPAD_STATE][slot][state], so the replies of the bionic protocol must not reach it.
+    private static final byte GLIBC_GAMEPAD_SLOT_SIZE = 60;
+    private static final byte GLIBC_AXIS_MODE_X_Y_Z_RZ = 0;
+    private static final byte GLIBC_AXIS_MODE_X_Y_RX_RY_Z_RZ = 1;
+    private final ByteBuffer glibcSendData = ByteBuffer.allocate(256).order(ByteOrder.LITTLE_ENDIAN);
+    private final DatagramPacket glibcSendPacket = new DatagramPacket(glibcSendData.array(), glibcSendData.capacity());
+    private boolean glibcProtocol = false;
     private boolean xinputDisabledInitialized = false;
 
 
@@ -436,6 +448,10 @@ public class WinHandler {
                 break;
             }
             case RequestCodes.GET_GAMEPAD: {
+                if (glibcProtocol) {
+                    handleGlibcGetGamepadRequest(port);
+                    break;
+                }
                 if (xinputDisabled) return;
                 boolean isXInput = receiveData.get() == 1;
                 boolean notify = receiveData.get() == 1;
@@ -511,6 +527,10 @@ public class WinHandler {
                 break;
             }
             case RequestCodes.RELEASE_GAMEPAD: {
+                if (glibcProtocol) {
+                    gamepadClients.remove(Integer.valueOf(port));
+                    break;
+                }
                 currentController = null;
                 gamepadClients.clear();
                 break;
@@ -568,6 +588,10 @@ public class WinHandler {
 
     public void sendGamepadState() {
         if (!initReceived || gamepadClients.isEmpty() || xinputDisabled ) return; // Add this check
+        if (glibcProtocol) {
+            sendGlibcGamepadState();
+            return;
+        }
         final ControlsProfile profile = activity.getInputControlsView().getProfile();
         final boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad();
         final boolean enabled = currentController != null || useVirtualGamepad;
@@ -590,6 +614,119 @@ public class WinHandler {
                 }
 
                 sendPacket(port);
+            });
+        }
+    }
+
+    public void setGlibcProtocol(boolean glibcProtocol) {
+        this.glibcProtocol = glibcProtocol;
+    }
+
+    private boolean sendGlibcPacket(int port) {
+        if (socket == null) return false;
+        try {
+            glibcSendPacket.setAddress(localhost);
+            glibcSendPacket.setPort(port);
+            socket.send(glibcSendPacket);
+            return true;
+        }
+        catch (IOException e) {
+            return false;
+        }
+    }
+
+    private void handleGlibcGetGamepadRequest(int port) {
+        final ControlsProfile profile = activity.getInputControlsView().getProfile();
+        final boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad();
+
+        if (!useVirtualGamepad && (currentController == null || !currentController.isConnected())) {
+            currentController = ExternalController.getController(0);
+            if (currentController != null) currentController.setTriggerType(triggerType);
+        }
+
+        final ExternalController controller = currentController;
+        final boolean enabled = !xinputDisabled && (useVirtualGamepad || controller != null);
+
+        if (enabled) {
+            if (!gamepadClients.contains(port)) gamepadClients.add(port);
+        }
+        else gamepadClients.remove(Integer.valueOf(port));
+
+        short vendorId = 0x0001;
+        short productId = 0x0001;
+        String name = "";
+        if (enabled) {
+            name = useVirtualGamepad ? profile.getName() : controller.getName();
+            InputDevice device = !useVirtualGamepad ? InputDevice.getDevice(controller.getDeviceId()) : null;
+            if (device != null) {
+                vendorId = (short)device.getVendorId();
+                productId = (short)device.getProductId();
+            }
+        }
+
+        final short finalVendorId = vendorId;
+        final short finalProductId = productId;
+        final byte[] nameBytes = name != null ? name.getBytes() : new byte[0];
+
+        addAction(() -> {
+            Arrays.fill(glibcSendData.array(), (byte)0);
+            glibcSendData.rewind();
+            glibcSendData.put(RequestCodes.GET_GAMEPAD);
+
+            // Only the first slot is used, the other ones stay zeroed (not connected).
+            if (enabled) {
+                boolean standard = dinputMapperType == DINPUT_MAPPER_TYPE_STANDARD;
+                glibcSendData.put((byte)1);
+                glibcSendData.put((byte)(standard ? 12 : 10));
+                glibcSendData.put(standard ? GLIBC_AXIS_MODE_X_Y_Z_RZ : GLIBC_AXIS_MODE_X_Y_RX_RY_Z_RZ);
+                glibcSendData.put((byte)0); // no vibration
+                glibcSendData.putShort(finalVendorId);
+                glibcSendData.putShort(finalProductId);
+                byte nameLength = (byte)Math.min(nameBytes.length, GLIBC_GAMEPAD_SLOT_SIZE - 12);
+                glibcSendData.put(nameLength);
+                glibcSendData.put(nameBytes, 0, nameLength);
+            }
+
+            sendGlibcPacket(port);
+        });
+    }
+
+    private void sendGlibcGamepadState() {
+        final ControlsProfile profile = activity.getInputControlsView().getProfile();
+        final boolean useVirtualGamepad = profile != null && profile.isVirtualGamepad();
+        if (!useVirtualGamepad && currentController == null) return;
+
+        final GamepadState state = useVirtualGamepad ? profile.getGamepadState() : currentController.state;
+        state.thumbRX = Mathf.clamp(state.thumbRX + gyroX, -1.0f, 1.0f);
+        state.thumbRY = Mathf.clamp(state.thumbRY + gyroY, -1.0f, 1.0f);
+
+        for (final int port : gamepadClients) {
+            addAction(() -> {
+                Arrays.fill(glibcSendData.array(), (byte)0);
+                glibcSendData.rewind();
+                glibcSendData.put(RequestCodes.GET_GAMEPAD_STATE);
+                glibcSendData.put((byte)0);
+
+                if (dinputMapperType == DINPUT_MAPPER_TYPE_STANDARD) {
+                    short buttons = state.buttons;
+                    if (state.triggerL > 0) buttons |= (1<<ExternalController.IDX_BUTTON_L2);
+                    if (state.triggerR > 0) buttons |= (1<<ExternalController.IDX_BUTTON_R2);
+                    glibcSendData.putShort(buttons);
+                }
+                else glibcSendData.putShort(state.buttons);
+
+                glibcSendData.put(state.getPovHat());
+                glibcSendData.putShort((short)(state.thumbLX * Short.MAX_VALUE));
+                glibcSendData.putShort((short)(state.thumbLY * Short.MAX_VALUE));
+                glibcSendData.putShort((short)(state.thumbRX * Short.MAX_VALUE));
+                glibcSendData.putShort((short)(state.thumbRY * Short.MAX_VALUE));
+
+                if (dinputMapperType != DINPUT_MAPPER_TYPE_STANDARD) {
+                    glibcSendData.putShort((short)(state.triggerL * Short.MAX_VALUE));
+                    glibcSendData.putShort((short)(state.triggerR * Short.MAX_VALUE));
+                }
+
+                sendGlibcPacket(port);
             });
         }
     }

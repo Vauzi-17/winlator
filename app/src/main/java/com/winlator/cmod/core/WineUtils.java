@@ -198,6 +198,37 @@ public abstract class WineUtils {
         }
     }
 
+    /**
+     * Service startup of the glibc runtime's prefix, as brunodev85's Winlator sets it. The services
+     * live under the control set that System\CurrentControlSet links to (writing through the link
+     * name changes nothing), and winebus stays enabled since gamepads reach Wine through it.
+     */
+    public static void changeGlibcServicesStatus(Container container, byte startupSelection) {
+        final int SERVICE_DISABLED = 4;
+        final String[] services = {"BITS:3", "Eventlog:2", "HTTP:3", "LanmanServer:3", "NDIS:2", "PlugPlay:2", "RpcSs:3", "scardsvr:3", "Schedule:3", "Spooler:3", "StiSvc:3", "TermService:3", "Winmgmt:3", "wuauserv:3", "winebth:3"};
+        final String[] extraServices = {"nsiproxy:2", "MSIServer:3", "FontCache:3"};
+        File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
+
+        try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
+            registryEditor.setCreateKeyIfNotExist(false);
+
+            String controlSetPath = registryEditor.getSymlinkValue("System\\CurrentControlSet", "SymbolicLinkValue");
+            if (controlSetPath == null) controlSetPath = "System\\CurrentControlSet";
+
+            for (String service : services) {
+                String name = service.substring(0, service.indexOf(":"));
+                int value = startupSelection != Container.STARTUP_SELECTION_NORMAL ? SERVICE_DISABLED : Character.getNumericValue(service.charAt(service.length()-1));
+                registryEditor.setDwordValue(controlSetPath+"\\Services\\"+name, "Start", value);
+            }
+
+            for (String service : extraServices) {
+                String name = service.substring(0, service.indexOf(":"));
+                int value = startupSelection == Container.STARTUP_SELECTION_AGGRESSIVE ? SERVICE_DISABLED : Character.getNumericValue(service.charAt(service.length()-1));
+                registryEditor.setDwordValue(controlSetPath+"\\Services\\"+name, "Start", value);
+            }
+        }
+    }
+
     public static void changeServicesStatus(Container container, boolean onlyEssential) {
         final String[] services = {"BITS:3", "Eventlog:2", "HTTP:3", "LanmanServer:3", "NDIS:2", "PlugPlay:2", "RpcSs:3", "scardsvr:3", "Schedule:3", "Spooler:3", "StiSvc:3", "TermService:3", "winebus:3", "winehid:3", "Winmgmt:3", "wuauserv:3"};
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");

@@ -1085,8 +1085,14 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         else
             startupSelection = String.valueOf(container.getStartupSelection());
 
-        if (!startupSelection.equals(container.getExtra("startupSelection"))) {
-            WineUtils.changeServicesStatus(container, Byte.parseByte(startupSelection) != Container.STARTUP_SELECTION_NORMAL);
+        // Glibc containers created before the fix kept every service enabled, apply it once.
+        boolean glibcServicesPending = container.isGlibcRuntime() && !"1".equals(container.getExtra("glibcServices"));
+        if (!startupSelection.equals(container.getExtra("startupSelection")) || glibcServicesPending) {
+            if (container.isGlibcRuntime()) {
+                WineUtils.changeGlibcServicesStatus(container, Byte.parseByte(startupSelection));
+                container.putExtra("glibcServices", "1");
+            }
+            else WineUtils.changeServicesStatus(container, Byte.parseByte(startupSelection) != Container.STARTUP_SELECTION_NORMAL);
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
         }

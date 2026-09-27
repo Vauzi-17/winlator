@@ -332,7 +332,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
         String selectedDriver = sGraphicsDriver.getSelectedItem().toString();
         List<String> sGraphicsItemsList = new ArrayList<>(Arrays.asList(context.getResources().getStringArray(R.array.graphics_driver_entries)));
-        sGraphicsDriver.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, sGraphicsItemsList));
+        sGraphicsDriver.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, sGraphicsItemsList));
         AppUtils.setSpinnerSelectionFromValue(sGraphicsDriver, selectedDriver);
 
         final Spinner sStartupSelection = findViewById(R.id.SStartupSelection);
@@ -488,7 +488,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         items.add(getContext().getString(R.string.use_container_setting));
         items.add(type.bundledName);
         items.addAll(new GlibcComponentManager(getContext(), type).getInstalled());
-        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, items));
+        spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, items));
         int position = 0;
         if (value != null) position = value.isEmpty() ? 1 : Math.max(0, items.indexOf(value));
         spinner.setSelection(position);
@@ -722,7 +722,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
             values.add(profile.getName());
         }
 
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, values));
+        spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, values));
         spinner.setSelection(selectedPosition, false);
     }
 
@@ -750,7 +750,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
                 itemList.add(entryName.substring(firstDashIndex + 1));
             }
         }
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, itemList));
     }
     
     public void loadGraphicsDriverSpinner(final Spinner sGraphicsDriver, final Spinner sDXWrapper, final View vGraphicsDriverConfig, String selectedGraphicsDriver, String selectedDXWrapper) {
@@ -774,7 +774,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
             for (String value : dxwrapperEntries) {
                     items.add(value);
             }
-            sDXWrapper.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items.toArray(new String[0])));
+            sDXWrapper.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, items.toArray(new String[0])));
             AppUtils.setSpinnerSelectionFromIdentifier(sDXWrapper, selectedDXWrapper);
         };
 

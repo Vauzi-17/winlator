@@ -44,7 +44,7 @@ public class GlibcTurnipConfigDialog extends ContentDialog {
     }
 
     private void setupSpinner(Spinner spinner, String[] names, String[] values, String selected) {
-        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, names));
+        spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, names));
         spinner.setSelection(Math.max(0, Arrays.asList(values).indexOf(selected)));
     }
 

@@ -303,7 +303,7 @@ public abstract class Box64PresetManager {
             }
         }
 
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, presets));
+        spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, presets));
         spinner.setSelection(selectedPosition);
     }
 

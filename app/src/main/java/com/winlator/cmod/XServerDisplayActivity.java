@@ -1416,7 +1416,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 profileItems.add(profile.getName());
             }
 
-            sProfile.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, profileItems));
+            sProfile.setAdapter(new ArrayAdapter<>(this, R.layout.spinner_dropdown_item, profileItems));
             sProfile.setSelection(selectedPosition);
         };
         loadProfileSpinner.run();

@@ -97,7 +97,7 @@ public class DXVKConfigDialog extends ContentDialog {
         loadVkd3dVersionSpinner(contentsManager, sVKD3DVersion);
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, VKD3D_FEATURE_LEVEL);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
         sVKD3DFeatureLevel.setAdapter(adapter);
 
         setDXVKSpinner(sDXVKVersion, config, contentsManager, isARM64EC);
@@ -141,7 +141,7 @@ public class DXVKConfigDialog extends ContentDialog {
 
                     dxvkVersions.removeAll(versions);
 
-                    ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, dxvkVersions);
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, dxvkVersions);
                     sDXVKVersion.setAdapter(adapter);
 
                     Integer curMajor = tryGetMajor(currentDXVKVersion);
@@ -213,7 +213,7 @@ public class DXVKConfigDialog extends ContentDialog {
 
             dxvkVersions.removeAll(versions);
 
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, dxvkVersions);
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, dxvkVersions);
             sDXVKVersion.setAdapter(adapter);
 
             Integer curMajor = tryGetMajor(currentDXVKVersion);
@@ -273,7 +273,7 @@ public class DXVKConfigDialog extends ContentDialog {
                 itemList.remove(i);
         }
 
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, itemList));
         dxvkVersions = itemList;
     }
 
@@ -293,7 +293,7 @@ public class DXVKConfigDialog extends ContentDialog {
             itemList.add(new VKD3DVersionItem(displayName, versionCode));
         }
 
-        ArrayAdapter<VKD3DVersionItem> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList);
+        ArrayAdapter<VKD3DVersionItem> adapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, itemList);
         spinner.setAdapter(adapter);
     }
 }

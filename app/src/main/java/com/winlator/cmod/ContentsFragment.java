@@ -143,7 +143,7 @@ public class ContentsFragment extends Fragment {
         List<String> typeList = new ArrayList<>();
         for (ContentProfile.ContentType type : ContentProfile.ContentType.values())
             typeList.add(type.toString());
-        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, typeList));
+        spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, typeList));
 
         // Set the popup background based on the theme
         spinner.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);

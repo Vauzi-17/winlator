@@ -40,16 +40,16 @@ public class WineD3DConfigDialog extends ContentDialog {
         final Spinner sOffscreenRenderingMode = findViewById(R.id.SOffscreenRenderingMode);
         final Spinner sRenderer = findViewById(R.id.SRenderer);
 
-        ArrayAdapter<String> csmtAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, csmtValues);
+        ArrayAdapter<String> csmtAdapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, csmtValues);
         sCSMT.setAdapter(csmtAdapter);
 
-        ArrayAdapter<String> ssmAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, strictShaderMathValues);
+        ArrayAdapter<String> ssmAdapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, strictShaderMathValues);
         sStrictShaderMath.setAdapter(ssmAdapter);
 
-        ArrayAdapter<String> ormAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, offscreenRenderingModeValues);
+        ArrayAdapter<String> ormAdapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, offscreenRenderingModeValues);
         sOffscreenRenderingMode.setAdapter(ormAdapter);
 
-        ArrayAdapter<String> rendererAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, rendererValues);
+        ArrayAdapter<String> rendererAdapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, rendererValues);
         sRenderer.setAdapter(rendererAdapter);
 
         loadGPUNameSpinner(sGPUName);
@@ -91,7 +91,7 @@ public class WineD3DConfigDialog extends ContentDialog {
                 String gpuName = jobj.getString("name");
                 entries.add(gpuName);
             }
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, entries);
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, entries);
             spinner.setAdapter(adapter);
         }
         catch (JSONException e) {

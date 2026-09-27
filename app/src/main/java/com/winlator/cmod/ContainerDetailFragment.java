@@ -479,7 +479,7 @@ public class ContainerDetailFragment extends Fragment {
 
         String selectedDriver = sGraphicsDriver.getSelectedItem().toString();
         List<String> sGraphicsItemsList = new ArrayList<>(Arrays.asList(context.getResources().getStringArray(R.array.graphics_driver_entries)));
-        sGraphicsDriver.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, sGraphicsItemsList));
+        sGraphicsDriver.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, sGraphicsItemsList));
         AppUtils.setSpinnerSelectionFromValue(sGraphicsDriver, selectedDriver);
 
 
@@ -729,7 +729,7 @@ public class ContainerDetailFragment extends Fragment {
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
             List<String> mouseWarpOverrideList = Arrays.asList(context.getString(R.string.disable), context.getString(R.string.enable), context.getString(R.string.force));
             Spinner sMouseWarpOverride = view.findViewById(R.id.SMouseWarpOverride);
-            sMouseWarpOverride.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, mouseWarpOverrideList));
+            sMouseWarpOverride.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, mouseWarpOverrideList));
             AppUtils.setSpinnerSelectionFromValue(sMouseWarpOverride, registryEditor.getStringValue("Software\\Wine\\DirectInput", "MouseWarpOverride", "disable"));
         }
     }
@@ -747,7 +747,7 @@ public class ContainerDetailFragment extends Fragment {
         }
         catch (JSONException e) {}
 
-        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, values));
+        spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, values));
         spinner.setSelection(selectedPosition);
     }
 
@@ -822,7 +822,7 @@ public class ContainerDetailFragment extends Fragment {
             for (String value : context.getResources().getStringArray(R.array.dxwrapper_entries)) {
                 items.add(value);
             }
-            sDXWrapper.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items.toArray()));
+            sDXWrapper.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, items.toArray()));
             AppUtils.setSpinnerSelectionFromIdentifier(sDXWrapper, selectedDXWrapper);
 
             vGraphicsDriverConfig.setOnClickListener((v) -> {
@@ -976,7 +976,7 @@ public class ContainerDetailFragment extends Fragment {
         Callback<String[]> addItem = (drive) -> {
             final View itemView = inflater.inflate(R.layout.drive_list_item, parent, false);
             Spinner spinner = itemView.findViewById(R.id.Spinner);
-            spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, driveLetters));
+            spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, driveLetters));
             AppUtils.setSpinnerSelectionFromValue(spinner, drive[0]+":");
 
             // Apply dark theme to the spinner popup background
@@ -1097,7 +1097,7 @@ public class ContainerDetailFragment extends Fragment {
         ArrayList<String> items = new ArrayList<>();
         items.add(type.bundledName);
         items.addAll(new GlibcComponentManager(getContext(), type).getInstalled());
-        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, items));
+        spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, items));
         int position = selected != null && !selected.isEmpty() ? items.indexOf(selected) : 0;
         spinner.setSelection(Math.max(position, 0));
     }
@@ -1162,7 +1162,7 @@ public class ContainerDetailFragment extends Fragment {
         final boolean glibcSupported = GlibcRootFs.find(context).isSupported();
 
         sRuntime.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
-        sRuntime.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, runtimes));
+        sRuntime.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, runtimes));
         sRuntime.setEnabled(!isEditMode());
         boolean isGlibc = isEditMode() && container.isGlibcRuntime();
         sRuntime.setSelection(isGlibc ? 1 : 0, false);
@@ -1172,7 +1172,7 @@ public class ContainerDetailFragment extends Fragment {
             ArrayList<String> items = new ArrayList<>();
             if (glibc) items.add(GlibcRootFs.WINE_VERSION);
             else items.addAll(bionicWineVersions);
-            sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items));
+            sWineVersion.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, items));
             if (isEditMode()) AppUtils.setSpinnerSelectionFromValue(sWineVersion, container.getWineVersion());
             tvRuntimeInfo.setVisibility(glibc ? View.VISIBLE : View.GONE);
             // One set of controls: the bionic or the glibc variant, depending on the runtime.
@@ -1231,8 +1231,8 @@ public class ContainerDetailFragment extends Fragment {
         for (XKeycode value : values) {
             array.add(value.name());
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(spinner.getContext(), android.R.layout.simple_spinner_dropdown_item, array);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(spinner.getContext(), R.layout.spinner_dropdown_item, array);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
         spinner.setAdapter(adapter);
 
         byte keycode = isEditMode() ? container.getControllerMapping(mapping) : (byte) defaultValue;
@@ -1251,7 +1251,7 @@ public class ContainerDetailFragment extends Fragment {
         List<String> itemList = new ArrayList<>(Arrays.asList(originalItems));
         
         // Set the adapter with the combined list
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, itemList));
     }
 
     public static void loadBox64VersionSpinner(Context context, Container container, ContentsManager manager, Spinner spinner, boolean isArm64EC) {
@@ -1277,7 +1277,7 @@ public class ContainerDetailFragment extends Fragment {
                 itemList.add(entryName.substring(firstDashIndex + 1));
             }
         }
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, itemList));
         if (container != null)
             AppUtils.setSpinnerSelectionFromValue(spinner, container.getBox64Version());
         else

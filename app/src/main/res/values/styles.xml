@@ -15,6 +15,7 @@
         <item name="popupWindowStyle">@style/PopupWindow</item>
         <item name="android:popupMenuStyle">@style/PopupMenu</item>
         <item name="popupMenuStyle">@style/PopupMenu</item>
+        <item name="android:spinnerDropDownItemStyle">@style/SpinnerDropDownItem</item>
     </style>
 
     <!-- Dark Theme -->
@@ -32,6 +33,7 @@
         <item name="popupWindowStyle">@style/PopupWindow.Dark</item>
         <item name="android:popupMenuStyle">@style/PopupMenu.Dark</item>
         <item name="popupMenuStyle">@style/PopupMenu.Dark</item>
+        <item name="android:spinnerDropDownItemStyle">@style/SpinnerDropDownItem.Dark</item>
     </style>
 
     <!-- Light Theme Fullscreen -->
@@ -48,6 +50,16 @@
         <item name="android:windowBackground">#000000</item>
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!-- Spinner items without the radio mark some ROMs draw next to them (also in the closed
+         combo box, since many adapters use simple_spinner_dropdown_item for both). -->
+    <style name="SpinnerDropDownItem" parent="@android:style/Widget.Material.Light.DropDownItem.Spinner">
+        <item name="android:checkMark">@null</item>
+    </style>
+
+    <style name="SpinnerDropDownItem.Dark" parent="@android:style/Widget.Material.DropDownItem.Spinner">
+        <item name="android:checkMark">@null</item>
     </style>
 
     <!-- Base ComboBox Styles -->

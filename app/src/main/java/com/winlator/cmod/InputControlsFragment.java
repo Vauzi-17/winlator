@@ -388,7 +388,7 @@ public class InputControlsFragment extends Fragment {
             values.add(profile.getName());
         }
 
-        spinner.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_dropdown_item, values));
+        spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, values));
         spinner.setSelection(selectedPosition, false);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override

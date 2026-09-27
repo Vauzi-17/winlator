@@ -75,7 +75,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                 String gpuName = jobj.getString("name");
                 entries.add(gpuName);
             }
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, entries);
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, entries);
             spinner.setAdapter(adapter);
         }
         catch (JSONException e) {
@@ -344,7 +344,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         wrapperVersions.addAll(adrenotoolsManager.enumarateInstalledDrivers());
 
         // Set the adapter and select the initial version
-        ArrayAdapter<String> wrapperAdapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wrapperVersions);
+        ArrayAdapter<String> wrapperAdapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, wrapperVersions);
         
         sVersion.setAdapter(wrapperAdapter);
         

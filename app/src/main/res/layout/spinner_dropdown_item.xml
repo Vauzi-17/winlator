@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- android.R.layout.simple_spinner_dropdown_item without the CheckedTextView radio mark that
+     some ROMs draw, which also showed up in the closed combo box. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/text1"
+    style="?android:attr/spinnerDropDownItemStyle"
+    android:layout_width="match_parent"
+    android:layout_height="?android:attr/dropdownListPreferredItemHeight"
+    android:singleLine="true"
+    android:ellipsize="marquee" />

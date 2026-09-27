@@ -101,7 +101,7 @@ public class GamepadConfiguratorDialog {
             String[] buttonOptions = getButtonOptions();
             ArrayAdapter<String> adapter = new ArrayAdapter<>(context,
                     android.R.layout.simple_spinner_item, buttonOptions);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
             spinner.setAdapter(adapter);
 
             byte mappedButton = externalController.getMappedButton(buttonIdx);
@@ -339,7 +339,7 @@ public class GamepadConfiguratorDialog {
             items.add("-- No Profiles --");
         }
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, items);
         profileSpinner.setAdapter(adapter);
     }
 

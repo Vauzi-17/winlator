@@ -25,7 +25,7 @@ public abstract class FEXCoreManager {
             int firstDashIndex = entryName.indexOf('-');
             itemList.add(entryName.substring(firstDashIndex + 1));
         }
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, itemList));
+        spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, itemList));
         AppUtils.setSpinnerSelectionFromValue(spinner, fexcoreVersion);
     }
 }

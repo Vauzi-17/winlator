@@ -130,7 +130,7 @@ public class Box64EditPresetDialog extends ContentDialog {
                     spinner.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
                     spinner.setVisibility(View.VISIBLE);
                     spinner.setEnabled(!readonly);
-                    spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, values));
+                    spinner.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, values));
                     AppUtils.setSpinnerSelectionFromValue(spinner, value);
                 }
 

@@ -63,7 +63,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     private final ContentProfile wineProfile;
     private Container container;
     private final Shortcut shortcut;
-    private int systemAffinityMask = 0;
 
     public void setWineInfo(WineInfo wineInfo) {
         this.wineInfo = wineInfo;
@@ -253,16 +252,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     public void setFEXCorePreset (String fexcorePreset) { this.fexcorePreset = fexcorePreset; }
 
-    /** CPU affinity of the whole wine process tree (children inherit it), 0 to leave it unrestricted. */
-    public void setSystemAffinityMask(int systemAffinityMask) { this.systemAffinityMask = systemAffinityMask; }
-
-    private String withSystemAffinity(String command) {
-        File taskset = new File("/system/bin/taskset");
-        if (systemAffinityMask == 0 || !taskset.canExecute()) return command;
-        // toybox taskset sets the mask on itself and execs the command, so the pid stays the same.
-        return taskset.getPath() + " " + Integer.toHexString(systemAffinityMask) + " " + command;
-    }
-
     private int execGuestProgram() {
         Context context = environment.getContext();
         ImageFs imageFs = environment.getImageFs();
@@ -417,7 +406,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             FileUtils.chmod(box64File, 0755);
         }
 
-        return ProcessHelper.exec(withSystemAffinity(command), envVars.toStringArray(), rootDir, (status) -> {
+        return ProcessHelper.exec(command, envVars.toStringArray(), rootDir, (status) -> {
             synchronized (lock) {
                 pid = -1;
             }
@@ -478,7 +467,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         Log.d("GuestProgramLauncherComponent", "Glibc command: " + command);
 
         // Start inside the ImageFs, which wine maps as Z:, like the bionic launcher does.
-        return ProcessHelper.exec(withSystemAffinity(command), envVars.toStringArray(), imageFs.getRootDir(), (status) -> {
+        return ProcessHelper.exec(command, envVars.toStringArray(), imageFs.getRootDir(), (status) -> {
             synchronized (lock) {
                 pid = -1;
             }

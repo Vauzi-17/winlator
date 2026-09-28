@@ -27,6 +27,8 @@ import com.winlator.cmod.xserver.XLock;
 import com.winlator.cmod.xserver.XServer;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -35,6 +37,10 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
     private final LayoutInflater inflater;
     private Timer timer;
     private final Object lock = new Object();
+    // Long press selects processes so one affinity can be applied to all of them.
+    private final LinkedHashSet<Integer> selectedPids = new LinkedHashSet<>();
+    private final HashMap<Integer, ProcessInfo> processInfos = new HashMap<>();
+    private final Button newTaskButton;
 
     public TaskManagerDialog(XServerDisplayActivity activity) {
         super(activity, R.layout.task_manager_dialog);
@@ -43,9 +49,13 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         setTitle(R.string.task_manager);
         setIcon(R.drawable.icon_task_manager);
 
-        Button cancelButton = findViewById(R.id.BTCancel);
-        cancelButton.setText(R.string.new_task);
-        cancelButton.setOnClickListener((v) -> {
+        newTaskButton = findViewById(R.id.BTCancel);
+        newTaskButton.setText(R.string.new_task);
+        newTaskButton.setOnClickListener((v) -> {
+            if (!selectedPids.isEmpty()) {
+                showSelectionAffinityDialog();
+                return;
+            }
             dismiss();
             ContentDialog.prompt(activity, R.string.new_task, "taskmgr.exe", (command) -> activity.getWinHandler().exec(command));
         });
@@ -114,6 +124,41 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         dialog.show();
     }
 
+    private void toggleSelection(int pid) {
+        if (!selectedPids.remove(pid)) selectedPids.add(pid);
+        updateSelectionViews();
+    }
+
+    private void updateSelectionViews() {
+        if (selectedPids.isEmpty()) newTaskButton.setText(R.string.new_task);
+        else newTaskButton.setText(activity.getString(R.string.set_affinity_of_selected, selectedPids.size()));
+
+        final LinearLayout container = findViewById(R.id.LLProcessList);
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View itemView = container.getChildAt(i);
+            Object pid = itemView.getTag();
+            itemView.setBackgroundColor(pid != null && selectedPids.contains((Integer)pid) ? 0x400288d1 : 0);
+        }
+    }
+
+    private void showSelectionAffinityDialog() {
+        ContentDialog dialog = new ContentDialog(activity, R.layout.cpu_list_dialog);
+        dialog.setTitle(activity.getString(R.string.processor_affinity)+" ("+selectedPids.size()+")");
+        dialog.setIcon(R.drawable.icon_cpu);
+        final CPUListView cpuListView = dialog.findViewById(R.id.CPUListView);
+        ProcessInfo first = processInfos.get(selectedPids.iterator().next());
+        if (first != null) cpuListView.setCheckedCPUList(first.getCPUList());
+        dialog.setOnConfirmCallback(() -> {
+            WinHandler winHandler = activity.getWinHandler();
+            int affinityMask = ProcessHelper.getAffinityMask(cpuListView.getCheckedCPUList());
+            for (int pid : selectedPids) winHandler.setProcessAffinity(pid, affinityMask);
+            selectedPids.clear();
+            updateSelectionViews();
+            update();
+        });
+        dialog.show();
+    }
+
     public static File getIconDir(Context context) {
         File iconDir = new File(ImageFs.find(context).getRootDir(), "home/xuser/.local/share/icons/taskmgr");
         if (!iconDir.isDirectory()) iconDir.mkdirs();
@@ -140,10 +185,13 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
         activity.runOnUiThread(() -> {
             synchronized (lock) {
                 final LinearLayout container = findViewById(R.id.LLProcessList);
-                setBottomBarText(activity.getString(R.string.processes)+": " + numProcesses);
+                setBottomBarText(activity.getString(R.string.processes)+": " + numProcesses+" \u2022 "+activity.getString(R.string.long_press_to_select_processes));
 
                 if (numProcesses == 0) {
                     container.removeAllViews();
+                    processInfos.clear();
+                    selectedPids.clear();
+                    updateSelectionViews();
                     findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
                     return;
                 }
@@ -156,6 +204,16 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
                 ((TextView)itemView.findViewById(R.id.TVPID)).setText(String.valueOf(processInfo.pid));
                 ((TextView)itemView.findViewById(R.id.TVMemoryUsage)).setText(processInfo.getFormattedMemoryUsage());
                 itemView.findViewById(R.id.BTMenu).setOnClickListener((v) -> showListItemMenu(v, processInfo));
+                processInfos.put(processInfo.pid, processInfo);
+                itemView.setTag(processInfo.pid);
+                itemView.setOnLongClickListener((v) -> {
+                    toggleSelection(processInfo.pid);
+                    return true;
+                });
+                itemView.setOnClickListener((v) -> {
+                    if (!selectedPids.isEmpty()) toggleSelection(processInfo.pid);
+                });
+                itemView.setBackgroundColor(selectedPids.contains(processInfo.pid) ? 0x400288d1 : 0);
 
                 XServer xServer = activity.getXServer();
                 Window window;
@@ -173,8 +231,18 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
 
                 if (index >= childCount) container.addView(itemView);
 
-                if (index == numProcesses-1 && childCount > numProcesses) {
-                    for (int i = childCount-1; i >= numProcesses; i--) container.removeViewAt(i);
+                if (index == numProcesses-1) {
+                    if (childCount > numProcesses) {
+                        for (int i = childCount-1; i >= numProcesses; i--) container.removeViewAt(i);
+                    }
+                    // Forget processes that ended.
+                    LinkedHashSet<Integer> alivePids = new LinkedHashSet<>();
+                    for (int i = 0; i < container.getChildCount(); i++) {
+                        Object pid = container.getChildAt(i).getTag();
+                        if (pid != null) alivePids.add((Integer)pid);
+                    }
+                    processInfos.keySet().retainAll(alivePids);
+                    if (selectedPids.retainAll(alivePids)) updateSelectionViews();
                 }
             }
         });

@@ -67,6 +67,10 @@
     <string name="value">Value</string>
     <string name="processor_affinity">Processor Affinity</string>
     <string name="processor_affinity_32_bit_apps">Processor Affinity (32-bit apps)</string>
+    <string name="processor_affinity_game">Processor Affinity (game)</string>
+    <string name="processor_affinity_wine_system">Processor Affinity (Wine system processes, none = no limit)</string>
+    <string name="set_affinity_of_selected">CPU (%d)</string>
+    <string name="long_press_to_select_processes">Long press a process to select several</string>
     <string name="cursor_speed">Cursor Speed</string>
     <string name="relative_mouse_movement">Relative Mouse Movement</string>
     <string name="toggle_switch">Toggle Switch</string>

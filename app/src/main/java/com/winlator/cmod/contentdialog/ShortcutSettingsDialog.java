@@ -385,6 +385,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
         final CPUListView cpuListView = findViewById(R.id.CPUListView);
         cpuListView.setCheckedCPUList(shortcut.getExtra("cpuList", Container.getFallbackShortcutCPUList()));
+        final CPUListView cpuListViewSystem = findViewById(R.id.CPUListViewSystem);
+        cpuListViewSystem.setCheckedCPUList(shortcut.getExtra("systemCpuList", Container.getFallbackShortcutSystemCPUList()));
 
         setOnConfirmCallback(() -> {
             String name = etName.getText().toString().trim();
@@ -466,6 +468,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
             String cpuList = cpuListView.getCheckedCPUListAsString();
             shortcut.putExtra("cpuList", cpuList);
+            shortcut.putExtra("systemCpuList", cpuListViewSystem.getCheckedCPUListAsString());
             if (isGlibc) {
                 shortcut.putExtra("glibcDriver", getGlibcComponentValue(sGlibcDriver));
                 shortcut.putExtra("glibcBox64", getGlibcComponentValue(sGlibcBox64));

@@ -17,7 +17,10 @@ add_library(vortekrenderer SHARED
             support/src/ring_buffer.c
             support/src/vortek_support.c)
 
+# Upstream builds with NDK r24 (clang 14); newer clang turned these warnings into errors.
 target_compile_options(vortekrenderer PRIVATE -O2 -fvisibility=hidden -Wno-unused-function
-                       -Wimplicit-function-declaration -DVK_USE_PLATFORM_ANDROID_KHR)
+                       -Wno-error=implicit-function-declaration -Wno-error=int-conversion
+                       -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types
+                       -Wno-incompatible-pointer-types-discards-qualifiers -DVK_USE_PLATFORM_ANDROID_KHR)
 target_include_directories(vortekrenderer PRIVATE include support/include)
 target_link_libraries(vortekrenderer adrenotools log android)

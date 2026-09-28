@@ -24,5 +24,9 @@ jobs:
           cmake -S app/src/main/cpp -B build -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --target vortekrenderer winlator -j"$(nproc)"
+          # -k 0 reports every failing file; only errors are printed, the vendored code is noisy.
+          if ! cmake --build build --target vortekrenderer winlator -j"$(nproc)" -- -k 0 > build.log 2>&1; then
+            grep -nE "error:|undefined (symbol|reference)|FAILED" -A3 build.log | head -150
+            exit 1
+          fi
           ls -la build/vortekrenderer/libvortekrenderer.so

@@ -30,6 +30,12 @@ public class GPUImage {
         }
     }
     
+    /** Wraps a hardware buffer owned by the caller. */
+    public GPUImage(long hardwareBufferPtr, int format) {
+        this.hardwareBufferPtr = hardwareBufferPtr;
+        this.format = format;
+    }
+
     public GPUImage(int socketFd) {
         hardwareBufferPtr = nativeHardwareBufferFromSocket(socketFd);
         if (hardwareBufferPtr == 0)

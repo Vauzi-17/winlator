@@ -19,6 +19,8 @@ import java.util.concurrent.Executors;
 public abstract class ProcessHelper {
     public static final boolean PRINT_DEBUG = true; // FIXME change to false
     private static final ArrayList<Callback<String>> debugCallbacks = new ArrayList<>();
+    // One-shot: the next exec appends its stdout/stderr (and its children's) to this file.
+    private static File nextOutputFile = null;
     private static final byte SIGCONT = 18;
     private static final byte SIGSTOP = 19;
     private static final byte SIGTERM = 15;
@@ -95,7 +97,16 @@ public abstract class ProcessHelper {
             ProcessBuilder pb = new ProcessBuilder(splitCommand);
             pb.directory(workingDir);
             pb.environment().putAll(EnvironmentManager.getEnvVars());
-            if (debugCallbacks.isEmpty()) {
+            File outputFile;
+            synchronized (debugCallbacks) {
+                outputFile = nextOutputFile;
+                nextOutputFile = null;
+            }
+            if (outputFile != null) {
+                pb.redirectErrorStream(true);
+                pb.redirectOutput(ProcessBuilder.Redirect.appendTo(outputFile));
+            }
+            else if (debugCallbacks.isEmpty()) {
                 File null_file = new File("/dev/null");
                 pb.redirectError(null_file);
                 pb.redirectOutput(null_file);
@@ -110,7 +121,7 @@ public abstract class ProcessHelper {
             pidField.setAccessible(false);
             Log.d("ProcessHelper", "Process started with pid: " + pid);
 
-            if (!debugCallbacks.isEmpty()) {
+            if (outputFile == null && !debugCallbacks.isEmpty()) {
                 createDebugThread(process.getInputStream());
                 createDebugThread(process.getErrorStream());
             }
@@ -122,6 +133,13 @@ public abstract class ProcessHelper {
             Log.e("ProcessHelper", "Error executing command: " + command, e);
         }
         return pid;
+    }
+
+    /** Sends the output of the next {@link #exec} call to a file, e.g. for diagnostics. */
+    public static void setNextOutputFile(File file) {
+        synchronized (debugCallbacks) {
+            nextOutputFile = file;
+        }
     }
 
     private static void createDebugThread(final InputStream inputStream) {

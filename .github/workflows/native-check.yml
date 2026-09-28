@@ -1,0 +1,28 @@
+name: Native check
+
+# Compiles the app's native libraries with the NDK only, much faster than a full APK build, to
+# catch C/C++ errors early.
+on:
+  push:
+    branches: [claude/winlator-bionic-glibc-option-a92alb]
+    paths: [app/src/main/cpp/**, .github/workflows/native-check.yml]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build native libraries
+        run: |
+          set -e
+          NDK="$ANDROID_NDK_LATEST_HOME"
+          echo "NDK: $NDK"
+          cmake -S app/src/main/cpp -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target vortekrenderer winlator -j"$(nproc)"
+          ls -la build/vortekrenderer/libvortekrenderer.so

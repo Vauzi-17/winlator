@@ -31,6 +31,7 @@ import com.winlator.cmod.box64.Box64PresetManager;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
+import com.winlator.cmod.core.DiagnosticsRecorder;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.AppUtils;
@@ -387,6 +388,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
         cpuListView.setCheckedCPUList(shortcut.getExtra("cpuList", Container.getFallbackShortcutCPUList()));
         final CPUListView cpuListViewSystem = findViewById(R.id.CPUListViewSystem);
         cpuListViewSystem.setCheckedCPUList(shortcut.getExtra("systemCpuList", Container.getFallbackShortcutSystemCPUList()));
+        final CheckBox cbRecordDiagnostics = findViewById(R.id.CBRecordDiagnostics);
+        cbRecordDiagnostics.setChecked("1".equals(shortcut.getExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN)));
 
         setOnConfirmCallback(() -> {
             String name = etName.getText().toString().trim();
@@ -469,6 +472,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
             String cpuList = cpuListView.getCheckedCPUListAsString();
             shortcut.putExtra("cpuList", cpuList);
             shortcut.putExtra("systemCpuList", cpuListViewSystem.getCheckedCPUListAsString());
+            shortcut.putExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN, cbRecordDiagnostics.isChecked() ? "1" : null);
             if (isGlibc) {
                 shortcut.putExtra("glibcDriver", getGlibcComponentValue(sGlibcDriver));
                 shortcut.putExtra("glibcBox64", getGlibcComponentValue(sGlibcBox64));
@@ -490,8 +494,10 @@ public class ShortcutSettingsDialog extends ContentDialog {
         ArrayList<String> items = new ArrayList<>();
         items.add(getContext().getString(R.string.use_container_setting));
         items.add(type.bundledName);
+        if (type == GlibcComponentManager.Type.DRIVER) items.add(GlibcComponentManager.VORTEK_NAME);
         items.addAll(new GlibcComponentManager(getContext(), type).getInstalled());
         spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, items));
+        if (GlibcComponentManager.VORTEK.equals(value)) value = GlibcComponentManager.VORTEK_NAME;
         int position = 0;
         if (value != null) position = value.isEmpty() ? 1 : Math.max(0, items.indexOf(value));
         spinner.setSelection(position);
@@ -501,7 +507,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
         int position = spinner.getSelectedItemPosition();
         if (position <= 0) return null;
         if (position == 1) return GlibcComponentManager.BUNDLED;
-        return spinner.getSelectedItem().toString();
+        String item = spinner.getSelectedItem().toString();
+        return item.equals(GlibcComponentManager.VORTEK_NAME) ? GlibcComponentManager.VORTEK : item;
     }
 
     private void applyFieldSetLabelStylesDynamically(ViewGroup rootView, boolean isDarkMode) {

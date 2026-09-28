@@ -15,6 +15,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.content.res.Configuration;
 
 import android.hardware.Sensor;
@@ -36,6 +37,7 @@ import android.view.PointerIcon;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.FrameLayout;
 import android.widget.Spinner;
@@ -48,6 +50,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
@@ -65,6 +68,7 @@ import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.contents.AdrenotoolsManager;
 import com.winlator.cmod.core.AppUtils;
+import com.winlator.cmod.core.DiagnosticsRecorder;
 import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.EnvVars;
 import com.winlator.cmod.core.FileUtils;
@@ -107,6 +111,7 @@ import com.winlator.cmod.xenvironment.ImageFs;
 import com.winlator.cmod.xenvironment.XEnvironment;
 import com.winlator.cmod.xenvironment.components.ALSAServerComponent;
 import com.winlator.cmod.xenvironment.components.GlibcNetworkInfoComponent;
+import com.winlator.cmod.xenvironment.components.VortekRendererComponent;
 import com.winlator.cmod.xenvironment.components.GuestProgramLauncherComponent;
 import com.winlator.cmod.xenvironment.components.PulseAudioComponent;
 import com.winlator.cmod.xenvironment.components.SysVSharedMemoryComponent;
@@ -179,6 +184,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private long lastSystemAffinityTime = 0;
     private static final String[] WINE_SYSTEM_PROCESSES = {"explorer.exe", "services.exe", "winedevice.exe", "plugplay.exe",
             "svchost.exe", "rpcss.exe", "winhandler.exe", "tabtip.exe", "conhost.exe", "start.exe"};
+    // Diagnostics of this run (shortcut setting) and the report shown when the game ends.
+    private DiagnosticsRecorder diagnostics;
+    private long guestStartTime = 0;
+    private volatile boolean runReportShown = false;
+    private volatile boolean exiting = false;
     private int frameRatingWindowId = -1;
     private boolean cursorLock; // Flag to track if pointer capture was requested
     private final float[] xform = XForm.getInstance();
@@ -887,7 +897,135 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         editor.apply();
     }
 
+    private void onGuestProgramTerminated(int status) {
+        if (exiting) return;
+        long runTime = System.currentTimeMillis() - guestStartTime;
+        boolean earlyExit = shortcut != null && runTime < DiagnosticsRecorder.EARLY_EXIT_MILLIS;
+        if (diagnostics == null && !earlyExit) {
+            exit();
+            return;
+        }
+        showRunReport(status, runTime, earlyExit);
+    }
+
+    /** Packs the diagnostics (if recorded) and tells what happened, then exits. */
+    private void showRunReport(Integer status, long runTime, boolean earlyExit) {
+        if (runReportShown) return;
+        runReportShown = true;
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            File report = diagnostics != null ? diagnostics.finish(buildDiagnosticsSummary(status, runTime)) : null;
+            String tail = diagnostics != null ? DiagnosticsRecorder.tail(diagnostics.getWineLogFile(), 12) : "";
+
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    exit();
+                    return;
+                }
+                StringBuilder message = new StringBuilder();
+                if (earlyExit) message.append(getString(R.string.game_closed_early, runTime / 1000)).append("\n\n");
+                if (diagnostics != null) {
+                    if (report != null) message.append(getString(R.string.diagnostics_saved_to, report.getPath()));
+                    else message.append(getString(R.string.diagnostics_not_saved));
+                    if (!tail.isEmpty()) message.append("\n\n").append(tail);
+                }
+                else message.append(getString(R.string.diagnostics_offer));
+
+                ContentDialog dialog = new ContentDialog(this);
+                dialog.setTitle(R.string.run_report);
+                dialog.setIcon(R.drawable.icon_debug);
+                dialog.setMessage(message.toString());
+                dialog.setCancelable(false);
+                dialog.setOnConfirmCallback(this::exit);
+
+                Button actionButton = dialog.findViewById(R.id.BTCancel);
+                if (report != null) {
+                    actionButton.setText(R.string.share);
+                    actionButton.setOnClickListener((v) -> {
+                        dialog.dismiss();
+                        shareFile(report);
+                        exit();
+                    });
+                }
+                else if (diagnostics == null && shortcut != null) {
+                    actionButton.setText(R.string.record_diagnostics_next_run_short);
+                    actionButton.setOnClickListener((v) -> {
+                        dialog.dismiss();
+                        shortcut.putExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN, "1");
+                        shortcut.saveData();
+                        exit();
+                    });
+                }
+                else actionButton.setVisibility(View.GONE);
+                dialog.show();
+            });
+        });
+    }
+
+    private void shareFile(File file) {
+        try {
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".tileprovider", file);
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            intent.setType("application/zip");
+            intent.putExtra(Intent.EXTRA_STREAM, uri);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(Intent.createChooser(intent, getString(R.string.share)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        }
+        catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Unable to share " + file, e);
+            AppUtils.showToast(this, getString(R.string.diagnostics_saved_to, file.getPath()));
+        }
+    }
+
+    private String buildDiagnosticsSummary(Integer status, long runTime) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            sb.append("App: ").append(getPackageName()).append(' ').append(info.versionName).append(" (").append(info.versionCode).append(")\n");
+        }
+        catch (PackageManager.NameNotFoundException e) {
+            sb.append("App: ").append(getPackageName()).append('\n');
+        }
+        sb.append("Device: ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append(" (").append(Build.HARDWARE).append(")\n");
+        sb.append("Android: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
+        sb.append("CPU cores: ").append(Runtime.getRuntime().availableProcessors()).append('\n');
+        sb.append("Run time: ").append(runTime / 1000).append(" s, exit status: ").append(status != null ? status : "closed from the app").append("\n\n");
+
+        if (container != null) {
+            sb.append("Container: ").append(container.getName()).append('\n');
+            sb.append("Runtime: ").append(container.isGlibcRuntime() ? "glibc" : "bionic").append('\n');
+            sb.append("Wine: ").append(container.getWineVersion()).append('\n');
+            sb.append("Screen size: ").append(container.getScreenSize()).append('\n');
+            if (container.isGlibcRuntime()) {
+                sb.append("Glibc driver: ").append(getGlibcDriver()).append('\n');
+                sb.append("Glibc Box64: ").append(container.getExtra("glibcBox64")).append('\n');
+                sb.append("Glibc Turnip config: ").append(container.getExtra("glibcTurnipConfig")).append('\n');
+            }
+            else {
+                sb.append("Graphics driver: ").append(container.getGraphicsDriver()).append('\n');
+                sb.append("Graphics driver config: ").append(container.getGraphicsDriverConfig()).append('\n');
+                sb.append("Emulator: ").append(container.getEmulator()).append('\n');
+            }
+            sb.append("DX wrapper: ").append(container.getDXWrapper()).append('\n');
+            sb.append("DX wrapper config: ").append(container.getDXWrapperConfig()).append('\n');
+            sb.append("Box64 preset: ").append(container.getBox64Preset()).append('\n');
+            sb.append("Env vars: ").append(container.getEnvVars()).append("\n\n");
+        }
+
+        if (shortcut != null) {
+            sb.append("Shortcut: ").append(shortcut.file.getName()).append('\n');
+            sb.append(FileUtils.readString(shortcut.file)).append('\n');
+        }
+        return sb.toString();
+    }
+
     private void exit() {
+        // Closed from the app while recording: show the report first, it calls exit() again.
+        if (diagnostics != null && !runReportShown) {
+            showRunReport(null, System.currentTimeMillis() - guestStartTime, false);
+            return;
+        }
+        exiting = true;
         preloaderDialog.showOnUiThread(R.string.shutdown);
         handler.postDelayed(new Runnable() {
             @Override
@@ -1219,6 +1357,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         // brunodev85's nsiproxy reads the network interfaces from the glibc rootfs (no netlink on Android).
         if (isGlibc) environment.addComponent(new GlibcNetworkInfoComponent());
 
+        // Vortek: the glibc Vulkan ICD forwards to Android's own driver through this server.
+        if (isVortekDriver()) {
+            environment.addComponent(new VortekRendererComponent(this, xServer,
+                    UnixSocketConfig.createSocket(socketRootPath, VortekRendererComponent.SERVER_PATH),
+                    new VortekRendererComponent.Options()));
+        }
+
         // Audio driver logic
         if (audioDriver.equals("alsa")) {
             envVars.put("ANDROID_ALSA_SERVER", socketRootPath + alsaServerPath);
@@ -1238,9 +1383,20 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             );
         }
 
+        // One run with logs, requested from the shortcut settings; packed into a report on exit.
+        if (shortcut != null && "1".equals(shortcut.getExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN))) {
+            shortcut.putExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN, null);
+            shortcut.saveData();
+            diagnostics = new DiagnosticsRecorder(this, shortcut.name);
+            diagnostics.applyEnvVars(envVars);
+            guestProgramLauncherComponent.setOutputFile(diagnostics.getWineLogFile());
+            diagnostics.start();
+        }
+
         // Pass final envVars to the launcher
+        guestStartTime = System.currentTimeMillis();
         guestProgramLauncherComponent.setEnvVars(envVars);
-        guestProgramLauncherComponent.setTerminationCallback((status) -> exit());
+        guestProgramLauncherComponent.setTerminationCallback(this::onGuestProgramTerminated);
 
         // Add the launcher to our environment
         environment.addComponent(guestProgramLauncherComponent);
@@ -1702,11 +1858,25 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         }
     }
 
+    private String getGlibcDriver() {
+        String driver = container.getExtra("glibcDriver");
+        if (shortcut != null) driver = shortcut.getExtra("glibcDriver", driver);
+        return driver;
+    }
+
+    private boolean isVortekDriver() {
+        return container != null && container.isGlibcRuntime() && GlibcComponentManager.VORTEK.equals(getGlibcDriver());
+    }
+
     private void setGlibcGraphicsDriverEnvVars() {
         GlibcRootFs glibcRootFs = GlibcRootFs.find(this);
         GlibcComponentManager driverManager = new GlibcComponentManager(this, GlibcComponentManager.Type.DRIVER);
-        String driver = container.getExtra("glibcDriver");
-        if (shortcut != null) driver = shortcut.getExtra("glibcDriver", driver);
+        String driver = getGlibcDriver();
+        if (GlibcComponentManager.VORTEK.equals(driver)) {
+            GlibcRootFsInstaller.installVortekIfNeeded(this);
+            // brunodev85 caps zink's GL version on Vortek.
+            if (!envVars.has("MESA_GL_VERSION_OVERRIDE")) envVars.put("MESA_GL_VERSION_OVERRIDE", "3.3");
+        }
         envVars.put("VK_ICD_FILENAMES", driverManager.getIcdFile(driver).getPath());
         if (driverManager.isInstalled(driver)) {
             envVars.put("LD_LIBRARY_PATH", driverManager.getComponentDir(driver) + ":" + glibcRootFs.getLibDir());

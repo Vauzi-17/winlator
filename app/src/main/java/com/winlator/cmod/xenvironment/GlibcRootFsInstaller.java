@@ -66,7 +66,7 @@ public abstract class GlibcRootFsInstaller {
             return file;
         });
 
-        for (String asset : new String[]{"box64.tzst", "turnip.tzst", "zink.tzst"}) {
+        for (String asset : new String[]{"box64.tzst", "turnip.tzst", "zink.tzst", "vortek.tzst"}) {
             success = success && extractAsset(context, asset, rootDir, (file, size) -> {
                 extractedFiles.add(file);
                 return file;
@@ -89,6 +89,26 @@ public abstract class GlibcRootFsInstaller {
         FileUtils.chmod(rootFs.getBox64File(), 0771);
         rootFs.createVersionFile(GlibcRootFs.LATEST_VERSION);
         if (onProgress != null) onProgress.call(100);
+        return true;
+    }
+
+    /** Adds Vortek's client ICD to a rootfs installed before it was bundled. Blocking. */
+    public static synchronized boolean installVortekIfNeeded(Context context) {
+        GlibcRootFs rootFs = GlibcRootFs.find(context);
+        if (!rootFs.isValid()) return false;
+        File rootDir = rootFs.getRootDir();
+        if (rootFs.getVortekIcdFile().isFile() && new File(rootDir, "usr/lib/libvulkan_vortek.so").isFile()) return true;
+
+        final List<File> extractedFiles = new ArrayList<>();
+        if (!extractAsset(context, "vortek.tzst", rootDir, (file, size) -> {
+            extractedFiles.add(file);
+            return file;
+        })) {
+            Log.e(TAG, "Unable to extract the Vortek driver");
+            return false;
+        }
+
+        relocate(extractedFiles, GlibcRootFs.ORIGINAL_PREFIX, rootFs.getRelocatedPrefix(), rootDir.getPath(), null);
         return true;
     }
 

@@ -1096,15 +1096,18 @@ public class ContainerDetailFragment extends Fragment {
     private void loadGlibcComponentSpinner(Spinner spinner, GlibcComponentManager.Type type, String selected) {
         ArrayList<String> items = new ArrayList<>();
         items.add(type.bundledName);
+        if (type == GlibcComponentManager.Type.DRIVER) items.add(GlibcComponentManager.VORTEK_NAME);
         items.addAll(new GlibcComponentManager(getContext(), type).getInstalled());
         spinner.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, items));
+        if (GlibcComponentManager.VORTEK.equals(selected)) selected = GlibcComponentManager.VORTEK_NAME;
         int position = selected != null && !selected.isEmpty() ? items.indexOf(selected) : 0;
         spinner.setSelection(Math.max(position, 0));
     }
 
     private static String getSelectedGlibcComponent(Spinner spinner) {
         if (spinner == null || spinner.getSelectedItemPosition() <= 0) return GlibcComponentManager.BUNDLED;
-        return spinner.getSelectedItem().toString();
+        String item = spinner.getSelectedItem().toString();
+        return item.equals(GlibcComponentManager.VORTEK_NAME) ? GlibcComponentManager.VORTEK : item;
     }
 
     private void setupGlibcComponentRow(View view, Spinner spinner, int importButtonId, int removeButtonId, GlibcComponentManager.Type type, String selected) {
@@ -1122,7 +1125,7 @@ public class ContainerDetailFragment extends Fragment {
 
         view.findViewById(removeButtonId).setOnClickListener((v) -> {
             String name = getSelectedGlibcComponent(spinner);
-            if (name.isEmpty()) return;
+            if (name.isEmpty() || name.equals(GlibcComponentManager.VORTEK)) return;
             ContentDialog.confirm(context, getString(R.string.glibc_component_remove_confirm, name), () -> {
                 new GlibcComponentManager(context, type).remove(name);
                 loadGlibcComponentSpinner(spinner, type, GlibcComponentManager.BUNDLED);

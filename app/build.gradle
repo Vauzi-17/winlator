@@ -137,7 +137,9 @@ tasks.register("downloadGlibcRuntime") {
         ["box64/box64-0.4.4.tzst", "box64.tzst", "e1a34fed50bb38ef7fbf51ad5e5b9a76ec4c8178f9cfb4b9f6def0497f2f446c"],
         ["box64/default.box64rc", "default.box64rc", "77fec02b3c8f4bf03420647491e0e21187310ec6ddbc035306d887e79bce2d51"],
         ["graphics_driver/turnip-26.2.0.tzst", "turnip.tzst", "1e5bd643d64b450960ea3208cc96599a4de577f178e9ba0843b1c37083ce50d2"],
-        ["graphics_driver/zink-22.2.5.tzst", "zink.tzst", "b9fc365f894a4b837cfd97861972e95c680b5e744691b508f49b9a06d9e3153c"]
+        ["graphics_driver/zink-22.2.5.tzst", "zink.tzst", "b9fc365f894a4b837cfd97861972e95c680b5e744691b508f49b9a06d9e3153c"],
+        // Client ICD of the Vortek driver, its server is app/src/main/cpp/vortekrenderer.
+        ["graphics_driver/vortek-2.1.tzst", "vortek.tzst", "505e5089371d8698184a3722d8672628b8ef1aa0a201efa6bf1f8d6163cc08cf"]
     ]
 
     doLast {

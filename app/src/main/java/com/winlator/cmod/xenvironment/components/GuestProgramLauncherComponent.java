@@ -63,6 +63,12 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     private final ContentProfile wineProfile;
     private Container container;
     private final Shortcut shortcut;
+    private File outputFile;
+
+    /** Appends the output of the wine process tree to this file (diagnostics), null discards it. */
+    public void setOutputFile(File outputFile) {
+        this.outputFile = outputFile;
+    }
 
     public void setWineInfo(WineInfo wineInfo) {
         this.wineInfo = wineInfo;
@@ -406,6 +412,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             FileUtils.chmod(box64File, 0755);
         }
 
+        if (outputFile != null) ProcessHelper.setNextOutputFile(outputFile);
         return ProcessHelper.exec(command, envVars.toStringArray(), rootDir, (status) -> {
             synchronized (lock) {
                 pid = -1;
@@ -467,6 +474,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         Log.d("GuestProgramLauncherComponent", "Glibc command: " + command);
 
         // Start inside the ImageFs, which wine maps as Z:, like the bionic launcher does.
+        if (outputFile != null) ProcessHelper.setNextOutputFile(outputFile);
         return ProcessHelper.exec(command, envVars.toStringArray(), imageFs.getRootDir(), (status) -> {
             synchronized (lock) {
                 pid = -1;

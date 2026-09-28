@@ -49,6 +49,9 @@ public class GlibcComponentManager {
 
     /** Value stored in containers/shortcuts for the bundled component. */
     public static final String BUNDLED = "";
+    /** Driver value for Vortek (Android's own Vulkan driver through the app); '@' never appears in imported names. */
+    public static final String VORTEK = "@vortek";
+    public static final String VORTEK_NAME = "Vortek (Android Vulkan driver)";
     private static final String ICD_FILE_NAME = "icd.aarch64.json";
     private static final String BOX64_FILE_NAME = "box64";
     private final Context context;
@@ -91,6 +94,7 @@ public class GlibcComponentManager {
 
     /** ICD json of the given driver, falling back to the bundled Turnip. */
     public File getIcdFile(String name) {
+        if (VORTEK.equals(name)) return GlibcRootFs.find(context).getVortekIcdFile();
         if (isInstalled(name)) return getMarkerFile(name);
         return new File(GlibcRootFs.find(context).getRootDir(), "/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json");
     }

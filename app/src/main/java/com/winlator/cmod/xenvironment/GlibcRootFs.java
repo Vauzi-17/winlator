@@ -141,6 +141,10 @@ public class GlibcRootFs {
         return new File(rootDir, "/usr/local/bin/box64");
     }
 
+    public File getVortekIcdFile() {
+        return new File(getRootDir(), "usr/share/vulkan/icd.d/vortek_icd.aarch64.json");
+    }
+
     public File getBox64RCFile() {
         return new File(rootDir, "/etc/config.box64rc");
     }

@@ -762,6 +762,13 @@
                 android:gravity="center_horizontal"
                 android:layout_marginTop="4dp" />
 
+            <CheckBox
+                android:id="@+id/CBRecordDiagnostics"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/record_diagnostics_next_run" />
+
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

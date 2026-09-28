@@ -68,6 +68,13 @@
     <string name="processor_affinity">Processor Affinity</string>
     <string name="processor_affinity_32_bit_apps">Processor Affinity (32-bit apps)</string>
     <string name="processor_affinity_game">Processor Affinity (game)</string>
+    <string name="record_diagnostics_next_run">Record diagnostics on the next launch (wine/Box64 logs + logcat, packed into a zip when the game ends)</string>
+    <string name="record_diagnostics_next_run_short">Diagnose next run</string>
+    <string name="run_report">Run Report</string>
+    <string name="game_closed_early">The game closed after %d s, it may have crashed.</string>
+    <string name="diagnostics_saved_to">Diagnostics saved to %s</string>
+    <string name="diagnostics_not_saved">Unable to save the diagnostics (storage permission?).</string>
+    <string name="diagnostics_offer">Tap "Diagnose next run" to record logs the next time this shortcut starts, then share the report.</string>
     <string name="processor_affinity_wine_system">Processor Affinity (Wine system processes, none = no limit)</string>
     <string name="set_affinity_of_selected">CPU (%d)</string>
     <string name="long_press_to_select_processes">Long press a process to select several</string>

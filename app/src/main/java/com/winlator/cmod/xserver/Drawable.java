@@ -42,6 +42,15 @@ public class Drawable extends XResource {
         }
     }
     
+    /** A drawable over a GPU image allocated elsewhere (e.g. a Vortek window buffer), no CPU backing. */
+    public Drawable(int id, int width, int height, Visual visual, GPUImage gpuImage) {
+        super(id);
+        this.width = (short)width;
+        this.height = (short)height;
+        this.visual = visual;
+        setGPUImage(gpuImage);
+    }
+
     public void setGPUImage(GPUImage texture) {
         this.gpuImage = texture;
         this.backingAHB = gpuImage.hardwareBufferPtr;

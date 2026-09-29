@@ -1492,6 +1492,39 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             frameRating = new FrameRating(this, graphicsDriverConfig, displayDriver, displayConfig);
             frameRating.setVisibility(View.GONE);
             rootView.addView(frameRating);
+            frameRating.setHost(new FrameRating.Host() {
+                @Override
+                public FrameGeneration getFrameGeneration() {
+                    return frameGeneration;
+                }
+
+                @Override
+                public void applyFrameGeneration() {
+                    frameGeneration.apply(XServerDisplayActivity.this);
+                }
+
+                @Override
+                public boolean isFrameGenerationAvailable() {
+                    return xServer.isDisplayX();
+                }
+
+                @Override
+                public String getHudScope() {
+                    return shortcut != null ? "shortcut." + shortcut.file.getName() : "container." + container.id;
+                }
+
+                @Override
+                public boolean canSaveToShortcut() {
+                    return shortcut != null;
+                }
+
+                @Override
+                public void saveToShortcut() {
+                    frameGeneration.saveTo(shortcut);
+                    shortcut.putExtra("fpsLimit", String.valueOf(FpsLimiter.getLimit()));
+                    shortcut.saveData();
+                }
+            });
         }
 
         // Get the fullscreen stretched extra from the shortcut if available

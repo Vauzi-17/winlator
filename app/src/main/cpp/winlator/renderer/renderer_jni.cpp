@@ -732,3 +732,8 @@ extern "C" JNIEXPORT jfloat JNICALL
 Java_com_winlator_cmod_widget_XServerView_nativeGetFrameGenerationSourceRate(JNIEnv *env, jclass obj) {
     return frameGenerator.getSourceRate();
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_XServerView_nativeSetFpsLimit(JNIEnv *env, jclass obj, jint fps) {
+    displayX.setFpsLimit(fps);
+}

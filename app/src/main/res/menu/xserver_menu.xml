@@ -33,6 +33,10 @@
             android:id="@+id/main_menu_frame_generation"
             android:title="@string/frame_generation" />
         <item
+            android:icon="@drawable/icon_popup_menu_cpu"
+            android:id="@+id/main_menu_fps_limit"
+            android:title="@string/fps_limit" />
+        <item
             android:icon="@drawable/icon_magnifier"
             android:id="@+id/main_menu_magnifier"
             android:title="@string/magnifier" />

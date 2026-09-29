@@ -5,6 +5,7 @@ import static com.winlator.cmod.xserver.XClientRequestHandler.RESPONSE_CODE_SUCC
 
 import android.util.SparseArray;
 
+import com.winlator.cmod.renderer.FpsLimiter;
 import com.winlator.cmod.renderer.GPUImage;
 import com.winlator.cmod.xconnector.XInputStream;
 import com.winlator.cmod.xconnector.XOutputStream;
@@ -130,12 +131,15 @@ public class PresentExtension implements Extension, XResourceManager.OnResourceL
         final Pixmap pixmap = client.xServer.pixmapManager.getPixmap(pixmapId);
         if (pixmap == null) throw new BadPixmap(pixmapId);
 
-        long ust = System.nanoTime() / 1000;
-        long msc = ust / FAKE_INTERVAL;
-        
         pixmap.drawable.updateDirect();
-        sendIdleNotify(window, pixmap, serial, idleFence);
-        sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+        // The game reuses the image once it is idle; the FPS limiter holds that
+        // back to its next slot, which paces the game (a no-op when off).
+        FpsLimiter.schedule(() -> {
+            long ust = System.nanoTime() / 1000;
+            long msc = ust / FAKE_INTERVAL;
+            sendIdleNotify(window, pixmap, serial, idleFence);
+            sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+        });
     }
 
     private void selectInput(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {

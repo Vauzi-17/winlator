@@ -33,6 +33,7 @@ import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.core.DiagnosticsRecorder;
+import com.winlator.cmod.renderer.FpsLimiter;
 import com.winlator.cmod.renderer.FrameGeneration;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
@@ -129,6 +130,17 @@ public class ShortcutSettingsDialog extends ContentDialog {
             vDisplayDriverConfig.setTag(shortcut.getExtra("eglConfig", shortcut.container.getEGLConfig()));
         }
         
+        // FPS limit: the first entry keeps the container's.
+        final Spinner sFpsLimit = findViewById(R.id.SFpsLimit);
+        ArrayList<String> fpsLimitItems = new ArrayList<>();
+        fpsLimitItems.add(getContext().getString(R.string.fps_limit_container_default, FpsLimiter.label(FpsLimiter.fromConfig(shortcut.container, null))));
+        fpsLimitItems.addAll(Arrays.asList(FpsLimiter.labels()));
+        sFpsLimit.setAdapter(new ArrayAdapter<>(getContext(), R.layout.spinner_dropdown_item, fpsLimitItems));
+        String shortcutFpsLimit = shortcut.getExtra("fpsLimit");
+        int shortcutFpsLimitValue = 0;
+        try { shortcutFpsLimitValue = Integer.parseInt(shortcutFpsLimit); } catch (NumberFormatException e) {}
+        sFpsLimit.setSelection(shortcutFpsLimit.isEmpty() ? 0 : FpsLimiter.indexOf(shortcutFpsLimitValue) + 1);
+
         // Frame generation: folded under the display driver, shown for DisplayX only.
         final View llFrameGenSection = findViewById(R.id.LLFrameGenSection);
         final View llFrameGeneration = findViewById(R.id.LLFrameGeneration);
@@ -493,6 +505,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
             shortcut.putExtra("systemCpuList", cpuListViewSystem.getCheckedCPUListAsString());
             shortcut.putExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN, cbRecordDiagnostics.isChecked() ? "1" : null);
             frameGeneration.saveTo(shortcut);
+            int fpsLimitPosition = sFpsLimit.getSelectedItemPosition();
+            shortcut.putExtra("fpsLimit", fpsLimitPosition > 0 ? String.valueOf(FpsLimiter.VALUES[fpsLimitPosition - 1]) : null);
             if (isGlibc) {
                 shortcut.putExtra("glibcDriver", getGlibcComponentValue(sGlibcDriver));
                 shortcut.putExtra("glibcBox64", getGlibcComponentValue(sGlibcBox64));

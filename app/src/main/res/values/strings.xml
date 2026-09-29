@@ -667,6 +667,10 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="vkbasalt_sharpness_denoise">Sharpeness Denoise</string>
     <string name="shutdown">Shutdown</string>
     <string name="magnifier_not_available">Magnifier is not available in DisplayX Mode</string>
+    <string name="fps_limit">FPS limit</string>
+    <string name="current">current</string>
+    <string name="fps_limit_container_default">Container default (%1$s)</string>
+    <string name="fps_limit_set">FPS limit: %1$s</string>
     <string name="frame_generation">Frame Generation (LSFG)</string>
     <string name="frame_gen_enable">Enable frame generation</string>
     <string name="frame_gen_multiplier">Multiplier</string>

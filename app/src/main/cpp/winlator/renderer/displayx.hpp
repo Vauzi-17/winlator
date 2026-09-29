@@ -162,6 +162,12 @@ class DisplayX {
         size_t frameGenBatchSize = 1;
         std::atomic_bool frameGenPending{false};
         
+        // FPS limit for games on the displayx layer: their presents are taken
+        // off the socket on a fixed timeline (network thread only).
+        std::atomic_int fpsLimit{0};
+        int64_t fpsLimitNext = 0;
+        void paceClientPresent();
+        
         bool fullscreen = false;
         int eventsPending = 0;
         int64_t previousReportedWorkTime = 0;
@@ -212,6 +218,7 @@ class DisplayX {
         void requestWindowUpdate(Window *window);
         void requestCursorUpdate();
         void wakePresent();
+        void setFpsLimit(int fps) { fpsLimit = fps > 0 ? fps : 0; }
         void updateCursorPosition();
         
         void createWindowControl(Window *window);

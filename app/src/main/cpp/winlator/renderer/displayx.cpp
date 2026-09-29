@@ -309,6 +309,8 @@ void DisplayX::networkThreadLoop() {
                             if (!swapchain)
                                 continue;
                             
+                            paceClientPresent();
+                            
                             auto drawable = swapchain->images.at(index).get();
                             if (!drawable)
                                 continue;
@@ -348,6 +350,28 @@ void DisplayX::networkThreadLoop() {
                 }
             }
         }
+    }
+}
+
+void DisplayX::paceClientPresent() {
+    int limit = fpsLimit.load();
+    if (limit <= 0) {
+        fpsLimitNext = 0;
+        return;
+    }
+    
+    // Holding the present back holds back its completion, and the game waits
+    // for that before it reuses the image: the game runs at the limit.
+    int64_t interval = 1000000000LL / limit;
+    int64_t now = getCurrentTimeNanos();
+    if (fpsLimitNext < now - interval) fpsLimitNext = now;
+    int64_t wait = fpsLimitNext - now;
+    fpsLimitNext += interval;
+    if (wait > 0) {
+        struct timespec ts{};
+        ts.tv_sec = wait / 1000000000LL;
+        ts.tv_nsec = wait % 1000000000LL;
+        nanosleep(&ts, nullptr);
     }
 }
 

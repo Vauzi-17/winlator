@@ -59,6 +59,7 @@ import com.google.android.material.navigation.NavigationView;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
+import com.winlator.cmod.renderer.FpsLimiter;
 import com.winlator.cmod.renderer.FrameGeneration;
 import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.contentdialog.DXVKConfigDialog;
@@ -1140,6 +1141,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 showFrameGenerationDialog();
                 drawerLayout.closeDrawers();
                 break;
+            case R.id.main_menu_fps_limit:
+                showFpsLimitDialog();
+                drawerLayout.closeDrawers();
+                break;
             case R.id.main_menu_magnifier:
                 if (xServer.isDisplayX()) {
                     AppUtils.showToast(this, R.string.magnifier_not_available);
@@ -1445,6 +1450,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         // Always applied, off included: the renderer outlives this activity.
         frameGeneration = FrameGeneration.fromShortcut(shortcut);
         frameGeneration.apply(this);
+        FpsLimiter.setLimit(FpsLimiter.fromConfig(container, shortcut));
 
         rootView.addView(xServerView);
 
@@ -1563,6 +1569,17 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 ((TextView) child).setTextColor(color);
             }
         }
+    }
+
+    private void showFpsLimitDialog() {
+        // Live only: the limit is kept per container and shortcut in their settings.
+        String[] items = FpsLimiter.labels();
+        int current = FpsLimiter.indexOf(FpsLimiter.getLimit());
+        items[current] = items[current] + "  (" + getString(R.string.current) + ")";
+        ContentDialog.showSingleChoiceList(this, R.string.fps_limit, items, (position) -> {
+            FpsLimiter.setLimit(FpsLimiter.VALUES[position]);
+            AppUtils.showToast(this, getString(R.string.fps_limit_set, FpsLimiter.label(FpsLimiter.VALUES[position])));
+        });
     }
 
     private void showFrameGenerationDialog() {

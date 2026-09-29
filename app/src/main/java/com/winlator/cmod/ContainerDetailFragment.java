@@ -48,6 +48,7 @@ import com.winlator.cmod.contentdialog.WineD3DConfigDialog;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.AppUtils;
+import com.winlator.cmod.renderer.FpsLimiter;
 import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.core.DefaultVersion;
 import com.winlator.cmod.core.EnvVars;
@@ -340,6 +341,10 @@ public class ContainerDetailFragment extends Fragment {
 
         loadScreenSizeSpinner(view, isEditMode() ? container.getScreenSize() : Container.DEFAULT_SCREEN_SIZE);
         
+        final Spinner sFpsLimit = view.findViewById(R.id.SFpsLimit);
+        sFpsLimit.setAdapter(new ArrayAdapter<>(context, R.layout.spinner_dropdown_item, FpsLimiter.labels()));
+        sFpsLimit.setSelection(FpsLimiter.indexOf(isEditMode() ? FpsLimiter.fromConfig(container, null) : 0));
+
         final Spinner sDisplayDriver = view.findViewById(R.id.SDisplayDriver);
         String displayDriver = isEditMode() ? container.getDisplayDriver() : Container.DEFAULT_DISPLAY_DRIVER;
         AppUtils.setSpinnerSelectionFromIdentifier(sDisplayDriver, displayDriver);
@@ -614,6 +619,7 @@ public class ContainerDetailFragment extends Fragment {
                     container.setPrimaryController(primaryController);
                     container.setControllerMapping(controllerMapping);
                     if (container.isGlibcRuntime()) saveGlibcSettings(container);
+                    container.putExtra("fpsLimit", fpsLimitValue(sFpsLimit));
                     container.saveData();
                     saveWineRegistryKeys(view);
                     getActivity().onBackPressed();
@@ -666,10 +672,9 @@ public class ContainerDetailFragment extends Fragment {
                     manager.createContainerAsync(data, contentsManager, (container) -> {
                         if (container != null) {
                             this.container = container;
-                            if (container.isGlibcRuntime()) {
-                                saveGlibcSettings(container);
-                                container.saveData();
-                            }
+                            if (container.isGlibcRuntime()) saveGlibcSettings(container);
+                            container.putExtra("fpsLimit", fpsLimitValue(sFpsLimit));
+                            container.saveData();
                             saveWineRegistryKeys(view);
                         }
                         else AppUtils.showToast(context, R.string.unable_to_create_container);
@@ -1085,6 +1090,12 @@ public class ContainerDetailFragment extends Fragment {
         for (ContentProfile profile : contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON))                                                      
         	wineVersions.add(ContentsManager.getEntryName(profile));
         loadRuntimeSpinner(view, sWineVersion, wineVersions);
+    }
+
+    /** The selected FPS limit as stored in the extras; null when off. */
+    private static String fpsLimitValue(Spinner spinner) {
+        int fps = FpsLimiter.VALUES[Math.max(0, spinner.getSelectedItemPosition())];
+        return fps > 0 ? String.valueOf(fps) : null;
     }
 
     private void saveGlibcSettings(Container container) {

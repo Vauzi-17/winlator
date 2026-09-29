@@ -288,4 +288,7 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     public static native float nativeGetFrameGenerationRate();
 
     public static native float nativeGetFrameGenerationSourceRate();
+
+    // FPS limit for games on the displayx layer; X11 presents are paced in Java (FpsLimiter).
+    public static native void nativeSetFpsLimit(int fps);
 }

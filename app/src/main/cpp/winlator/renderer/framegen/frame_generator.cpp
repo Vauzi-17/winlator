@@ -631,6 +631,7 @@ bool FrameGenerator::process(AHardwareBuffer *source, int syncFence, std::vector
     engine->setPresentedRate(presentedRate.load());
     uint32_t generations = engine->plan((uint32_t)genRing.size(), ++sourceFrames);
     generations = std::min<uint32_t>(generations, (uint32_t)genRing.size());
+    sourceRate = engine->sourceRate();
 
     vk.ResetCommandBuffer(commandBuffer, 0);
     VkCommandBufferBeginInfo beginInfo{};

@@ -286,4 +286,6 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     public static native String nativeGetFrameGenerationStatusText();
 
     public static native float nativeGetFrameGenerationRate();
+
+    public static native float nativeGetFrameGenerationSourceRate();
 }

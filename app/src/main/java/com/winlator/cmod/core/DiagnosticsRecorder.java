@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -85,6 +86,19 @@ public class DiagnosticsRecorder {
         if (logcatProcess != null) {
             logcatProcess.destroy();
             logcatProcess = null;
+        }
+        // Killing the live capture loses whatever logcat still held in its
+        // output buffer, which was everything after the first seconds of play.
+        // A dump of what logd keeps for this process covers the end of the run.
+        try {
+            Process dump = new ProcessBuilder("logcat", "-d", "-v", "threadtime", "--pid=" + android.os.Process.myPid())
+                .redirectErrorStream(true)
+                .redirectOutput(new File(workDir, "logcat-end.txt"))
+                .start();
+            if (!dump.waitFor(10, TimeUnit.SECONDS)) dump.destroy();
+        }
+        catch (IOException | InterruptedException e) {
+            Log.e(TAG, "Unable to dump logcat", e);
         }
 
         FileUtils.writeString(new File(workDir, "summary.txt"), summary);

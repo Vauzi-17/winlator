@@ -80,7 +80,8 @@ public class FrameGeneration {
                 break;
             case STATUS_RUNNING:
                 text = context.getString(R.string.frame_gen_status_running,
-                        Math.round(XServerView.nativeGetFrameGenerationRate()));
+                        Math.round(XServerView.nativeGetFrameGenerationRate()),
+                        Math.round(XServerView.nativeGetFrameGenerationSourceRate()));
                 break;
             case STATUS_NO_SHADERS:
                 text = context.getString(R.string.frame_gen_status_no_shaders);

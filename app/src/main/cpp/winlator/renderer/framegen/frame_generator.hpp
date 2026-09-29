@@ -61,6 +61,8 @@ public:
     int getStatus() const { return status.load(); }
     std::string getStatusText();
     float getPresentedRate() const { return presentedRate.load(); }
+    // The game's own frame rate as the pacer measures it.
+    float getSourceRate() const { return sourceRate.load(); }
 
     // Present thread only. Returns false when the frame should be presented as
     // usual (generation off or impossible); `syncFence` is then untouched.
@@ -109,6 +111,7 @@ private:
     std::atomic<float> refreshRate{60.0f};
     std::atomic_int status{STATUS_OFF};
     std::atomic<float> presentedRate{0.0f};
+    std::atomic<float> sourceRate{0.0f};
     char reason[192] = "";
 
     // Vulkan, all owned by the present thread.

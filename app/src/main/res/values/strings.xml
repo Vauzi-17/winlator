@@ -677,7 +677,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="frame_gen_save_to_shortcut">Save to shortcut</string>
     <string name="frame_gen_status_off">Off</string>
     <string name="frame_gen_status_waiting">Waiting for the game\'s frames</string>
-    <string name="frame_gen_status_running">Running, %1$d fps on screen</string>
+    <string name="frame_gen_status_running">Running: %1$d fps on screen, game %2$d fps</string>
     <string name="frame_gen_status_no_shaders">No shaders: import Lossless.dll in Settings</string>
     <string name="frame_gen_status_unsupported">Not supported by this GPU driver</string>
     <string name="frame_gen_status_failed">Stopped after an error</string>

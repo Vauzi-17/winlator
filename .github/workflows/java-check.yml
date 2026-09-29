@@ -4,7 +4,7 @@ name: Java check
 # asset downloads), to catch AAPT and javac errors before a full build.
 on:
   push:
-    branches: [claude/winlator-bionic-glibc-option-a92alb]
+    branches: [winlator-bionic-glibc]
     paths: [app/src/main/java/**, app/src/main/res/**, app/src/main/AndroidManifest.xml, .github/workflows/java-check.yml]
   workflow_dispatch:
 

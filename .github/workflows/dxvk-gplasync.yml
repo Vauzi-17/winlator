@@ -6,7 +6,7 @@ name: DXVK GPLAsync
 # app's Contents screen (x86_64 DLLs to system32, i386 DLLs to syswow64).
 on:
   push:
-    branches: [claude/winlator-bionic-glibc-option-a92alb]
+    branches: [winlator-bionic-glibc]
     paths: [.github/workflows/dxvk-gplasync.yml]
   workflow_dispatch:
     inputs:

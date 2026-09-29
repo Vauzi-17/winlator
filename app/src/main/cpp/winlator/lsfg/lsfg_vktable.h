@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_android.h>
 
 #define LSFG_VK_INSTANCE_FUNCTIONS(X)            \
     X(DestroyInstance)                           \

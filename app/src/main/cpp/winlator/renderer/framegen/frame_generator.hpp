@@ -15,6 +15,7 @@
 
 #include <android/hardware_buffer.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_android.h>
 
 #include <atomic>
 #include <cstdint>

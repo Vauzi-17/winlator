@@ -4,7 +4,7 @@ name: Native check
 # catch C/C++ errors early.
 on:
   push:
-    branches: [claude/winlator-bionic-glibc-option-a92alb]
+    branches: [winlator-bionic-glibc]
     paths: [app/src/main/cpp/**, .github/workflows/native-check.yml]
   workflow_dispatch:
 

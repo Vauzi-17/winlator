@@ -32,6 +32,7 @@ import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.core.DiagnosticsRecorder;
+import com.winlator.cmod.renderer.FrameGeneration;
 import com.winlator.cmod.contents.ContentProfile;
 import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.AppUtils;
@@ -390,6 +391,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
         cpuListViewSystem.setCheckedCPUList(shortcut.getExtra("systemCpuList", Container.getFallbackShortcutSystemCPUList()));
         final CheckBox cbRecordDiagnostics = findViewById(R.id.CBRecordDiagnostics);
         cbRecordDiagnostics.setChecked("1".equals(shortcut.getExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN)));
+        final FrameGeneration frameGeneration = FrameGeneration.fromShortcut(shortcut);
+        frameGeneration.bindViews(findViewById(R.id.LLFrameGeneration), null);
 
         setOnConfirmCallback(() -> {
             String name = etName.getText().toString().trim();
@@ -473,6 +476,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
             shortcut.putExtra("cpuList", cpuList);
             shortcut.putExtra("systemCpuList", cpuListViewSystem.getCheckedCPUListAsString());
             shortcut.putExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN, cbRecordDiagnostics.isChecked() ? "1" : null);
+            frameGeneration.saveTo(shortcut);
             if (isGlibc) {
                 shortcut.putExtra("glibcDriver", getGlibcComponentValue(sGlibcDriver));
                 shortcut.putExtra("glibcBox64", getGlibcComponentValue(sGlibcBox64));

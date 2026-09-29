@@ -59,6 +59,7 @@ import com.google.android.material.navigation.NavigationView;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
+import com.winlator.cmod.renderer.FrameGeneration;
 import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.contentdialog.DXVKConfigDialog;
 import com.winlator.cmod.contentdialog.DebugDialog;
@@ -156,6 +157,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private FrameRating frameRating = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
+    private FrameGeneration frameGeneration = new FrameGeneration();
     private String displayDriver = Container.DEFAULT_DISPLAY_DRIVER;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
     private HashMap<String, String> graphicsDriverConfig;
@@ -1130,6 +1132,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 new TaskManagerDialog(this).show();
                 drawerLayout.closeDrawers();
                 break;
+            case R.id.main_menu_frame_generation:
+                showFrameGenerationDialog();
+                drawerLayout.closeDrawers();
+                break;
             case R.id.main_menu_magnifier:
                 if (xServer.isDisplayX()) {
                     AppUtils.showToast(this, R.string.magnifier_not_available);
@@ -1432,6 +1438,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         
         xServer.setXServerView(xServerView);
 
+        // Always applied, off included: the renderer outlives this activity.
+        frameGeneration = FrameGeneration.fromShortcut(shortcut);
+        frameGeneration.apply(this);
+
         rootView.addView(xServerView);
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
@@ -1549,6 +1559,44 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 ((TextView) child).setTextColor(color);
             }
         }
+    }
+
+    private void showFrameGenerationDialog() {
+        if (!xServer.isDisplayX()) {
+            AppUtils.showToast(this, R.string.frame_gen_needs_displayx);
+            return;
+        }
+
+        ContentDialog dialog = new ContentDialog(this, R.layout.frame_generation_dialog);
+        dialog.setTitle(R.string.frame_generation);
+        dialog.setIcon(R.drawable.icon_screen_effect);
+        dialog.findViewById(R.id.BTCancel).setVisibility(View.GONE);
+
+        final TextView tvStatus = dialog.findViewById(R.id.TVFrameGenStatus);
+        final CheckBox cbSaveToShortcut = dialog.findViewById(R.id.CBFrameGenSaveToShortcut);
+        cbSaveToShortcut.setVisibility(shortcut != null ? View.VISIBLE : View.GONE);
+
+        // Every change applies to the running game right away.
+        frameGeneration.bindViews(dialog.findViewById(R.id.LLFrameGeneration), () -> frameGeneration.apply(this));
+
+        final Handler handler = new Handler(Looper.getMainLooper());
+        final Runnable refreshStatus = new Runnable() {
+            @Override
+            public void run() {
+                tvStatus.setText(FrameGeneration.getStatusText(XServerDisplayActivity.this));
+                handler.postDelayed(this, 1000);
+            }
+        };
+        refreshStatus.run();
+        dialog.setOnDismissListener((d) -> handler.removeCallbacks(refreshStatus));
+
+        dialog.setOnConfirmCallback(() -> {
+            if (shortcut != null && cbSaveToShortcut.isChecked()) {
+                frameGeneration.saveTo(shortcut);
+                shortcut.saveData();
+            }
+        });
+        dialog.show();
     }
 
     private void showInputControlsDialog() {

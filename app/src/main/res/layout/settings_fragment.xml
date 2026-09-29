@@ -224,6 +224,51 @@
                     android:text="@string/sound" />
             </FrameLayout>
 
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout style="@style/FieldSet">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/TVLosslessDllStatus"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1" />
+
+                        <ImageButton
+                            android:id="@+id/BTImportLosslessDll"
+                            style="@style/ListMenuButton"
+                            android:contentDescription="@string/lossless_dll_import"
+                            android:src="@drawable/icon_add" />
+
+                        <ImageButton
+                            android:id="@+id/BTRemoveLosslessDll"
+                            style="@style/ListMenuButton"
+                            android:layout_marginRight="0dp"
+                            android:contentDescription="@string/lossless_dll_remove"
+                            android:src="@drawable/icon_remove" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/lossless_dll_hint"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:text="@string/lossless_dll" />
+            </FrameLayout>
+
             <!-- Theme Settings -->
             <FrameLayout
                 android:layout_width="match_parent"

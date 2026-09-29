@@ -9,6 +9,10 @@ add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
 add_subdirectory(vortekrenderer)
 
+# DXVK's DXBC->SPIR-V translator (zlib). LSFG Native translates the frame
+# generation shaders from the user's own Lossless.dll with it on device.
+add_subdirectory(thirdparty/dxbc)
+
 # Add Winlator shared library
 add_library(winlator SHARED
         xr/engine.c
@@ -32,10 +36,29 @@ add_library(winlator SHARED
         winlator/renderer/view_transformation.cpp
         winlator/renderer/displayx.cpp
         winlator/renderer/effectcomposer/effect_composer.cpp
+        winlator/renderer/framegen/frame_generator.cpp
+        winlator/lsfg/lsfg_probe.cpp
+        winlator/lsfg/lsfg_dll.cpp
+        winlator/lsfg/lsfg_dxbc.cpp
+        winlator/lsfg/lsfg_vkd.cpp
+        winlator/lsfg/lsfg_common.cpp
+        winlator/lsfg/lsfg_shaders.cpp
+        winlator/lsfg/lsfg_mipmaps.cpp
+        winlator/lsfg/lsfg_alpha.cpp
+        winlator/lsfg/lsfg_beta.cpp
+        winlator/lsfg/lsfg_gamma.cpp
+        winlator/lsfg/lsfg_delta.cpp
+        winlator/lsfg/lsfg_generate.cpp
+        winlator/lsfg/lsfg_chain.cpp
+        winlator/lsfg/lsfg_pacer.cpp
+        winlator/lsfg/lsfg_engine.cpp
+        winlator/lsfg/lsfg_governor.cpp
+        winlator/lsfg/lsfg_jni.cpp
 )
 
 target_compile_options(winlator PRIVATE -Wall -Wextra)
-target_include_directories(winlator PRIVATE winlator/renderer winlator/renderer/effectcomposer)
+set_target_properties(winlator PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_include_directories(winlator PRIVATE winlator/renderer winlator/renderer/effectcomposer winlator/renderer/framegen winlator/lsfg)
 
 target_link_libraries(winlator
         log
@@ -48,4 +71,5 @@ target_link_libraries(winlator
         GLESv3
         adrenotools
         vulkan
+        dxbc
 )

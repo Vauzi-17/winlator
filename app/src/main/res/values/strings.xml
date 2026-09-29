@@ -667,4 +667,27 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="vkbasalt_sharpness_denoise">Sharpeness Denoise</string>
     <string name="shutdown">Shutdown</string>
     <string name="magnifier_not_available">Magnifier is not available in DisplayX Mode</string>
+    <string name="frame_generation">Frame Generation (LSFG)</string>
+    <string name="frame_gen_enable">Enable frame generation</string>
+    <string name="frame_gen_multiplier">Multiplier</string>
+    <string name="frame_gen_flow_scale">Flow scale</string>
+    <string name="frame_gen_flow_scale_hint">Lower is lighter on the GPU, higher is sharper motion</string>
+    <string name="frame_gen_adaptive">Adaptive (only generate while it raises the frame rate, back off when hot)</string>
+    <string name="frame_gen_requirements">Needs DisplayX and your own Lossless.dll imported in Settings. Adds one frame of latency.</string>
+    <string name="frame_gen_save_to_shortcut">Save to shortcut</string>
+    <string name="frame_gen_status_off">Off</string>
+    <string name="frame_gen_status_waiting">Waiting for the game\'s frames (DisplayX Vulkan games only)</string>
+    <string name="frame_gen_status_running">Running, %1$d fps on screen</string>
+    <string name="frame_gen_status_no_shaders">No shaders: import Lossless.dll in Settings</string>
+    <string name="frame_gen_status_unsupported">Not supported by this GPU driver</string>
+    <string name="frame_gen_status_failed">Stopped after an error</string>
+    <string name="frame_gen_needs_displayx">Frame generation needs the DisplayX display driver</string>
+    <string name="lossless_dll">Lossless.dll (LSFG frame generation)</string>
+    <string name="lossless_dll_import">Import Lossless.dll</string>
+    <string name="lossless_dll_remove">Remove</string>
+    <string name="lossless_dll_remove_confirm">Remove the imported Lossless.dll and its shader cache?</string>
+    <string name="lossless_dll_not_imported">Not imported</string>
+    <string name="lossless_dll_ready">Imported, shaders ready</string>
+    <string name="lossless_dll_building">Translating the shaders, this takes a while…</string>
+    <string name="lossless_dll_hint">Use the Lossless.dll from your own copy of Lossless Scaling (Steam). It is read as data only; the frame generation shaders are translated once on this device.</string>
 </resources>

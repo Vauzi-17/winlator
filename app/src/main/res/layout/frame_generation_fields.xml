@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <CheckBox
+        android:id="@+id/CBFrameGen"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/frame_gen_enable" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/frame_gen_multiplier" />
+
+    <Spinner
+        android:id="@+id/SFrameGenMultiplier"
+        style="@style/ComboBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:entries="@array/frame_gen_multiplier_entries" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/frame_gen_flow_scale" />
+
+        <TextView
+            android:id="@+id/TVFrameGenFlowScale"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <SeekBar
+        android:id="@+id/SBFrameGenFlowScale"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="75" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/frame_gen_flow_scale_hint"
+        android:textSize="12sp" />
+
+    <CheckBox
+        android:id="@+id/CBFrameGenAdaptive"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/frame_gen_adaptive" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/frame_gen_requirements"
+        android:textSize="12sp" />
+</LinearLayout>

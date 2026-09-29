@@ -334,4 +334,9 @@
         <item>CAS</item>
         <item>DLS</item>
     </string-array>
+    <string-array name="frame_gen_multiplier_entries">
+        <item>2x</item>
+        <item>3x</item>
+        <item>4x</item>
+    </string-array>
 </resources>

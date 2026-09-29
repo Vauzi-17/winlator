@@ -15,6 +15,7 @@ CursorManager cursorManager;
 EGLRenderer renderer;
 EffectComposer effectComposer;
 DisplayX displayX;
+FrameGenerator frameGenerator;
 
 extern "C" jint JNI_OnLoad(JavaVM* vm, void*) {
     JNIEnv* env = nullptr;
@@ -173,6 +174,8 @@ Java_com_winlator_cmod_widget_XServerView_nativeInit(JNIEnv *env, jobject thiz, 
     displayX.cache = &cache;
     displayX.xServer = &xserver;
     displayX.effectComposer = &effectComposer;
+    displayX.frameGenerator = &frameGenerator;
+    frameGenerator.setRefreshRate(xserver.refreshRate);
     
     if (xserver.isDisplayX()) {
         displayX.setPerformanceMode(env->GetBooleanField(context, cache.performanceMode));
@@ -685,4 +688,42 @@ Java_com_winlator_cmod_widget_XServerView_nativeCompositeRedirect(JNIEnv *env, j
             }    
         }
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_XServerView_nativeSetFrameGeneration(JNIEnv *env, jclass obj, jboolean enabled, jint multiplier, jfloat flowScale, jboolean adaptive, jstring cachePath) {
+    FrameGenerator::Config config;
+    config.enabled = enabled == JNI_TRUE;
+    config.multiplier = multiplier;
+    config.flowScale = flowScale;
+    config.adaptive = adaptive == JNI_TRUE;
+    
+    std::string path;
+    if (cachePath) {
+        const char *chars = env->GetStringUTFChars(cachePath, nullptr);
+        if (chars) {
+            path = chars;
+            env->ReleaseStringUTFChars(cachePath, chars);
+        }
+    }
+    
+    // Frame generation runs in the DisplayX present path only.
+    if (!xserver.isDisplayX()) config.enabled = false;
+    frameGenerator.setConfig(config, path);
+    displayX.wakePresent();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_winlator_cmod_widget_XServerView_nativeGetFrameGenerationStatus(JNIEnv *env, jclass obj) {
+    return frameGenerator.getStatus();
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_winlator_cmod_widget_XServerView_nativeGetFrameGenerationStatusText(JNIEnv *env, jclass obj) {
+    return env->NewStringUTF(frameGenerator.getStatusText().c_str());
+}
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_com_winlator_cmod_widget_XServerView_nativeGetFrameGenerationRate(JNIEnv *env, jclass obj) {
+    return frameGenerator.getPresentedRate();
 }

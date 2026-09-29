@@ -98,7 +98,7 @@ void DisplayX::onFrameCallback64(int64_t frameTimeNanos, void* data) {
     
     {
         auto lock = self->presentLock.lock();
-        if (!self->presentRequests.empty() && self->presentRR) {
+        if ((!self->presentRequests.empty() || self->frameGenPending) && (self->presentRR || self->isFrameGenPaced())) {
             self->requestUpdate = true;
             self->presentLock.notify();
         }
@@ -120,7 +120,7 @@ void DisplayX::onVsyncCallback(const AChoreographerFrameCallbackData* callbackDa
     {
         auto lock = self->presentLock.lock();
         self->vsyncId = id;
-        if (!self->presentRequests.empty() && self->presentRR) {
+        if ((!self->presentRequests.empty() || self->frameGenPending) && (self->presentRR || self->isFrameGenPaced())) {
             self->requestUpdate = true;
             self->presentLock.notify();
         }
@@ -460,17 +460,101 @@ void DisplayX::onCommitCallback(void *context, ASurfaceTransactionStats *stats) 
     self->previousReportedWorkTime = currentTime;
 }
 
+void DisplayX::sendPresentComplete(int clientFd, uint8_t swapchainId, uint64_t presentId) {
+    // One write, so a completion sent from the present thread never interleaves
+    // with one sent from a transaction callback on the same socket.
+    char message[13];
+    int requestCode = 4;
+    memcpy(message, &requestCode, 4);
+    memcpy(message + 4, &swapchainId, 1);
+    memcpy(message + 5, &presentId, 8);
+    write(clientFd, message, sizeof(message));
+}
+
 void DisplayX::onCompleteCallback(void *context, ASurfaceTransactionStats *stats) {
     std::unique_ptr<OnCompleteContext> completeContext(static_cast<OnCompleteContext *>(context));
     
     for (auto &request : completeContext->requests) {
         if (request->presentId >= 0) {
-            int requestCode = 4;
-            write(request->clientFd, &requestCode, 4);
-            write(request->clientFd, &request->swapchainId, 1);
-            write(request->clientFd, &request->presentId, 8);
+            sendPresentComplete(request->clientFd, request->swapchainId, request->presentId);
         }
     }
+}
+
+bool DisplayX::isFrameGenPaced() {
+    return frameGenerator && frameGenerator->isEnabled();
+}
+
+void DisplayX::dropFrameGenOutput(FrameGenOutput &output) {
+    if (output.hasCompletion)
+        sendPresentComplete(output.clientFd, output.swapchainId, output.presentId);
+    AHardwareBuffer_release(output.ahb);
+}
+
+void DisplayX::flushFrameGenQueue() {
+    while (!frameGenQueue.empty()) {
+        dropFrameGenOutput(frameGenQueue.front());
+        frameGenQueue.pop_front();
+    }
+    frameGenPending = false;
+}
+
+bool DisplayX::queueFrameGenOutputs(PresentRequest *request) {
+    // Frame generation follows one window at a time: the game's.
+    if (frameGenWindowId != request->window->id && !frameGenQueue.empty())
+        return false;
+    
+    if (!frameGenerator->process(request->drawable->ahb, request->sync_fence, frameGenOutputs))
+        return false;
+    
+    // The game's buffer was copied, its fence waited on and closed.
+    request->sync_fence = -1;
+    frameGenWindowId = request->window->id;
+    
+    // Keep latency bounded: at most one earlier batch may still be waiting.
+    while (frameGenQueue.size() > frameGenOutputs.size()) {
+        dropFrameGenOutput(frameGenQueue.front());
+        frameGenQueue.pop_front();
+    }
+    
+    for (size_t i = 0; i < frameGenOutputs.size(); i++) {
+        FrameGenOutput output{};
+        output.ahb = frameGenOutputs[i];
+        AHardwareBuffer_acquire(output.ahb);
+        output.hasCompletion = i + 1 == frameGenOutputs.size() && request->clientFd >= 0;
+        output.clientFd = request->clientFd;
+        output.swapchainId = request->swapchainId;
+        output.presentId = request->presentId;
+        frameGenQueue.push_back(output);
+    }
+    
+    return true;
+}
+
+void DisplayX::presentFrameGenOutput(ASurfaceTransaction *transaction) {
+    if (frameGenQueue.empty()) {
+        frameGenPending = false;
+        return;
+    }
+    
+    FrameGenOutput output = frameGenQueue.front();
+    frameGenQueue.pop_front();
+    
+    auto window = windowManager->getWindow(frameGenWindowId);
+    if (window && window->control && window->enabled) {
+        pfnASurfaceTransactionSetBuffer(transaction, window->control, output.ahb, -1);
+        pfnASurfaceTransactionSetBufferTransparency(transaction, window->control, ASURFACE_TRANSACTION_TRANSPARENCY_OPAQUE);
+        
+        if (!window->backPressureEnabled && pfnASurfaceTransactionSetEnableBackPressure && backPressure)  {
+            pfnASurfaceTransactionSetEnableBackPressure(transaction, window->control, true);
+            window->backPressureEnabled = true;
+        }
+        
+        frameGenerator->onPresented(1);
+    }
+    
+    dropFrameGenOutput(output);
+    frameGenPending = !frameGenQueue.empty();
 }
 
 void DisplayX::presentThreadLoop() {
@@ -491,7 +575,8 @@ void DisplayX::presentThreadLoop() {
         auto lock = presentLock.lock();
         
         presentLock.wait(lock, [&]{ 
-            return stopped || (eventsPending == 0 && ((requestUpdate && presentRR) || (!presentRequests.empty() && !presentRR)) && hasSurface && surfaceChanged && !paused);
+            bool paced = presentRR || isFrameGenPaced();
+            return stopped || (eventsPending == 0 && ((requestUpdate && paced) || (!presentRequests.empty() && !paced)) && hasSurface && surfaceChanged && !paused);
         });
         
         if (stopped) {
@@ -509,10 +594,15 @@ void DisplayX::presentThreadLoop() {
         
         if (vsyncId > -1) pfnASurfaceTransactionSetFrameTimeline(presentTransaction, vsyncId);
         
-        if (presentRR) requestUpdate = false;
+        bool frameGenOn = isFrameGenPaced();
+        if (presentRR || frameGenOn) requestUpdate = false;
         lock.unlock();
         
         auto completeContext = std::make_unique<OnCompleteContext>();
+        
+        // Frame generation was switched off: its queued frames would overwrite
+        // the game's own from here on.
+        if (!frameGenOn && !frameGenQueue.empty()) flushFrameGenQueue();
         
         while (!requests.empty()) {
             auto presentRequest = std::move(requests.front());
@@ -528,6 +618,9 @@ void DisplayX::presentThreadLoop() {
                 pfnASurfaceTransactionSetBuffer(presentTransaction, window->control, nullptr, presentRequest->sync_fence);
             }
             else {
+                if (frameGenOn && drawable->isDisplayX && queueFrameGenOutputs(presentRequest.get()))
+                    continue;
+                
                 if (effectComposer->isSuitableForColorSwap(drawable)) {
                     pfnASurfaceTransactionSetBuffer(presentTransaction, window->control, drawable->composerTexture->dstBuffer, presentRequest->sync_fence);
                 }
@@ -546,6 +639,8 @@ void DisplayX::presentThreadLoop() {
                 }
             }
         }
+        
+        if (frameGenOn) presentFrameGenOutput(presentTransaction);
         
         if (perfMode && pfnASurfaceTransactionSetOnCommit) pfnASurfaceTransactionSetOnCommit(presentTransaction, this, DisplayX::onCommitCallback);
         if (!completeContext->requests.empty()) pfnASurfaceTransactionSetOnComplete(presentTransaction, completeContext.release(), DisplayX::onCompleteCallback);
@@ -680,6 +775,11 @@ void DisplayX::requestWindowUpdate(Window *window) {
     
     presentRequests.push(std::move(presentRequest));
     if (!presentRR) presentLock.notify();
+}
+
+void DisplayX::wakePresent() {
+    auto lock = presentLock.lock();
+    presentLock.notify();
 }
 
 void DisplayX::requestCursorUpdate() {

@@ -48,6 +48,7 @@ import com.winlator.cmod.contents.ContentsManager;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.ArrayUtils;
 import com.winlator.cmod.core.Callback;
+import com.winlator.cmod.core.LsfgNative;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.core.TarCompressorUtils;
@@ -100,6 +101,7 @@ public class SettingsFragment extends Fragment {
     private static final int REQUEST_CODE_INSTALL_SOUNDFONT = 1001;
     private static final int REQUEST_CODE_IMPORT_BOX64_PRESET = 1004;
     private static final int REQUEST_CODE_IMPORT_FEXCORE_PRESET = 1005;
+    private static final int REQUEST_CODE_IMPORT_LOSSLESS_DLL = 1006;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -252,6 +254,16 @@ public class SettingsFragment extends Fragment {
                 });
             } else
                 AppUtils.showToast(context, R.string.cannot_remove_default_sound_font);
+        });
+
+        updateLosslessDllStatus(view);
+        view.findViewById(R.id.BTImportLosslessDll).setOnClickListener(v -> openFile(REQUEST_CODE_IMPORT_LOSSLESS_DLL));
+        view.findViewById(R.id.BTRemoveLosslessDll).setOnClickListener(v -> {
+            if (!LsfgNative.isDllAvailable(context)) return;
+            ContentDialog.confirm(context, R.string.lossless_dll_remove_confirm, () -> {
+                LsfgNative.remove(context);
+                updateLosslessDllStatus(view);
+            });
         });
 
         final CheckBox cbUseDRI3 = view.findViewById(R.id.CBUseDRI3);
@@ -606,6 +618,35 @@ public class SettingsFragment extends Fragment {
     }
 
 
+    private void updateLosslessDllStatus(View view) {
+        TextView tvStatus = view.findViewById(R.id.TVLosslessDllStatus);
+        Context context = view.getContext();
+        if (!LsfgNative.isDllAvailable(context))
+            tvStatus.setText(R.string.lossless_dll_not_imported);
+        else if (LsfgNative.isReady(context))
+            tvStatus.setText(R.string.lossless_dll_ready);
+        else
+            tvStatus.setText(LsfgNative.explain(LsfgNative.STATUS_TRANSLATION_FAILED));
+    }
+
+    private void importLosslessDll(Uri uri) {
+        final Activity activity = requireActivity();
+        final View view = getView();
+        PreloaderDialog dialog = new PreloaderDialog(activity);
+        dialog.showOnUiThread(R.string.lossless_dll_building);
+        Executors.newSingleThreadExecutor().execute(() -> {
+            int status = LsfgNative.importDll(activity, uri);
+            dialog.closeOnUiThread();
+            activity.runOnUiThread(() -> {
+                if (view != null) updateLosslessDllStatus(view);
+                String message = status == LsfgNative.STATUS_OK
+                    ? activity.getString(R.string.lossless_dll_ready)
+                    : LsfgNative.explain(status);
+                ContentDialog.alert(activity, message, null);
+            });
+        });
+    }
+
     private void openFile(int requestCode) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -764,6 +805,9 @@ public class SettingsFragment extends Fragment {
                             FEXCorePresetManager.loadSpinner(sFEXCorePreset, preferences.getString("fexcore_preset", FEXCorePreset.INTERMEDIATE));
                         } catch (FileNotFoundException e) {
                         }
+                        break;
+                    case REQUEST_CODE_IMPORT_LOSSLESS_DLL:
+                        importLosslessDll(uri);
                         break;
                         // Add future cases here for other request codes...
                     default:

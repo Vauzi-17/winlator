@@ -277,4 +277,13 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     public native void nativeSetCompositeRedirected(int windowId, boolean redirected);
     @FastNative
     public native void nativeCompositeRedirect(int srcDrawableId, int dstDrawableId, short dstX, short dstY);
+
+    // LSFG Native frame generation (DisplayX only); see renderer/framegen.
+    public static native void nativeSetFrameGeneration(boolean enabled, int multiplier, float flowScale, boolean adaptive, String cachePath);
+
+    public static native int nativeGetFrameGenerationStatus();
+
+    public static native String nativeGetFrameGenerationStatusText();
+
+    public static native float nativeGetFrameGenerationRate();
 }

@@ -5,6 +5,7 @@
 #include <thread>
 #include <functional>
 #include <queue>
+#include <deque>
 #include <cmath>
 #include <dlfcn.h>
 #include <unordered_set>
@@ -17,6 +18,7 @@
 #include "window.hpp"
 #include "effect_composer.hpp"
 #include "cursor.hpp"
+#include "frame_generator.hpp"
 
 class DisplayX {
     private:
@@ -103,6 +105,17 @@ class DisplayX {
             std::vector<std::unique_ptr<PresentRequest>> requests;
         };
         
+        // A frame produced by frame generation, waiting for its vsync. The real
+        // frame of each batch carries the game's present completion, sent once
+        // it reaches the screen so the game stays paced by the display.
+        struct FrameGenOutput {
+            AHardwareBuffer *ahb;
+            bool hasCompletion;
+            int clientFd;
+            uint8_t swapchainId;
+            uint64_t presentId;
+        };
+        
         JNIEnv *env;
         int surfaceWidth;
         int surfaceHeight;
@@ -138,6 +151,11 @@ class DisplayX {
         
         bool requestUpdate = false;
         
+        std::deque<FrameGenOutput> frameGenQueue;
+        std::vector<AHardwareBuffer *> frameGenOutputs;
+        int frameGenWindowId = -1;
+        std::atomic_bool frameGenPending{false};
+        
         bool fullscreen = false;
         int eventsPending = 0;
         int64_t previousReportedWorkTime = 0;
@@ -152,6 +170,12 @@ class DisplayX {
         static void onCompleteCallback(void *context, ASurfaceTransactionStats *stats);
         int64_t getCurrentTimeNanos();
         bool isPerformanceHintAPIAvailable();
+        bool isFrameGenPaced();
+        bool queueFrameGenOutputs(PresentRequest *request);
+        void presentFrameGenOutput(ASurfaceTransaction *transaction);
+        void dropFrameGenOutput(FrameGenOutput &output);
+        void flushFrameGenQueue();
+        static void sendPresentComplete(int clientFd, uint8_t swapchainId, uint64_t presentId);
         
         void createRootWindowControl();
         void createRootCursorControl();
@@ -166,6 +190,7 @@ class DisplayX {
         JNIXServer *xServer;
         JNICache *cache;
         EffectComposer *effectComposer;
+        FrameGenerator *frameGenerator = nullptr;
         
         bool cursorVisible = false;
         
@@ -180,6 +205,7 @@ class DisplayX {
         void queueEvent(std::function<void()> func);
         void requestWindowUpdate(Window *window);
         void requestCursorUpdate();
+        void wakePresent();
         void updateCursorPosition();
         
         void createWindowControl(Window *window);

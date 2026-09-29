@@ -29,6 +29,10 @@
             android:id="@+id/main_menu_task_manager"
             android:title="@string/task_manager" />
         <item
+            android:icon="@drawable/icon_screen_effect"
+            android:id="@+id/main_menu_frame_generation"
+            android:title="@string/frame_generation" />
+        <item
             android:icon="@drawable/icon_magnifier"
             android:id="@+id/main_menu_magnifier"
             android:title="@string/magnifier" />

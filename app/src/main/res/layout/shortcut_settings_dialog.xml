@@ -736,6 +736,24 @@
                     android:text="@string/vkbasalt" />
             </FrameLayout>
 
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" >
+
+                <LinearLayout
+                    android:id="@+id/LLFrameGeneration"
+                    style="@style/FieldSet" >
+
+                    <include layout="@layout/frame_generation_fields" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/FieldSetLabel"
+                    android:background="#ffffff"
+                    android:text="@string/frame_generation" />
+            </FrameLayout>
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

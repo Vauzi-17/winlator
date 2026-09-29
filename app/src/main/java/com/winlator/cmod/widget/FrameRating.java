@@ -17,6 +17,7 @@ import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.core.GPUInformation;
 import com.winlator.cmod.core.KeyValueSet;
 import com.winlator.cmod.core.StringUtils;
+import com.winlator.cmod.renderer.FrameGeneration;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -120,7 +121,12 @@ public class FrameRating extends FrameLayout implements Runnable {
     @Override
     public void run() {
         if (getVisibility() == GONE) setVisibility(View.VISIBLE);
-        tvFPS.setText(String.format(Locale.ENGLISH, "%.1f", lastFPS));
+        // With frame generation running the overlay shows what reaches the screen,
+        // generated frames included; DXVK's HUD keeps showing the game's own rate.
+        if (FrameGeneration.getStatus() == FrameGeneration.STATUS_RUNNING)
+            tvFPS.setText(String.format(Locale.ENGLISH, "%.1f (FG)", XServerView.nativeGetFrameGenerationRate()));
+        else
+            tvFPS.setText(String.format(Locale.ENGLISH, "%.1f", lastFPS));
         tvRAM.setText(getAvailableRAM() + " GB Used / " + totalRAM + " Total");
     }
 }

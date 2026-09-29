@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -134,15 +135,15 @@ public class DiagnosticsRecorder {
             raf.seek(length - size);
             raf.readFully(data);
             String[] lines = new String(data, StandardCharsets.UTF_8).split("\n");
-            int from = Math.max(0, lines.length - maxLines);
-            StringBuilder sb = new StringBuilder();
-            for (int i = from; i < lines.length; i++) {
+            // The +process/+loaddll trace channels are there for the zip; the
+            // errors and warnings are what a player can act on.
+            ArrayList<String> picked = new ArrayList<>();
+            for (int i = lines.length - 1; i >= 0 && picked.size() < maxLines; i--) {
                 String line = lines[i].trim();
-                if (line.isEmpty()) continue;
-                if (sb.length() > 0) sb.append('\n');
-                sb.append(line.length() > 160 ? line.substring(0, 160) + "…" : line);
+                if (line.isEmpty() || line.contains(":trace:")) continue;
+                picked.add(0, line.length() > 160 ? line.substring(0, 160) + "…" : line);
             }
-            return sb.toString();
+            return String.join("\n", picked);
         }
         catch (IOException e) {
             return "";

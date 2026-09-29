@@ -154,6 +154,12 @@ class DisplayX {
         std::deque<FrameGenOutput> frameGenQueue;
         std::vector<AHardwareBuffer *> frameGenOutputs;
         int frameGenWindowId = -1;
+        // Pacing: the frames of one batch are spread over the game's frame
+        // interval instead of going out on consecutive vsyncs.
+        int64_t frameGenLastSourceTime = 0;
+        int64_t frameGenLastPresentTime = 0;
+        float frameGenSourcePeriod = 0.0f;
+        size_t frameGenBatchSize = 1;
         std::atomic_bool frameGenPending{false};
         
         bool fullscreen = false;

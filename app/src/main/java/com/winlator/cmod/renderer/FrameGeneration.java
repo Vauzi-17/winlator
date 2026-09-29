@@ -54,6 +54,12 @@ public class FrameGeneration {
         shortcut.putExtra("frameGenAdaptive", adaptive ? "1" : null);
     }
 
+    /** One line for a folded settings header, e.g. "2x, flow 0.80". */
+    public String getSummary(Context context) {
+        if (!enabled) return context.getString(R.string.frame_gen_status_off);
+        return multiplier + "x, flow " + String.format("%.2f", flowScale / 100.0f) + (adaptive ? ", adaptive" : "");
+    }
+
     /** Hand the settings to the renderer; takes effect on the next game frame. */
     public void apply(Context context) {
         XServerView.nativeSetFrameGeneration(enabled, multiplier, flowScale / 100.0f, adaptive,

@@ -504,12 +504,35 @@ bool DisplayX::queueFrameGenOutputs(PresentRequest *request) {
     if (frameGenWindowId != request->window->id && !frameGenQueue.empty())
         return false;
     
-    if (!frameGenerator->process(request->drawable->ahb, request->sync_fence, frameGenOutputs))
+    // A game presenting through X11 (DRI3 + Present, not the displayx layer)
+    // hands its swapchain pixmaps over as direct content. The request keeps the
+    // pixmap current when it was queued; the window's is the newest one.
+    Drawable *source = request->drawable;
+    if (source->isDirectContent && request->window->externalContent)
+        source = request->window->externalContent;
+    if (!source->ahb)
+        return false;
+    
+    if (!frameGenerator->process(source->ahb, request->sync_fence, frameGenOutputs))
         return false;
     
     // The game's buffer was copied, its fence waited on and closed.
     request->sync_fence = -1;
+    if (frameGenWindowId != request->window->id) {
+        frameGenLastSourceTime = 0;
+        frameGenSourcePeriod = 0.0f;
+    }
     frameGenWindowId = request->window->id;
+    
+    int64_t now = getCurrentTimeNanos();
+    if (frameGenLastSourceTime > 0) {
+        float period = (float)(now - frameGenLastSourceTime);
+        // A long gap (a loading screen, a pause) says nothing about the pace.
+        if (period < 250000000.0f)
+            frameGenSourcePeriod = frameGenSourcePeriod > 0.0f ? frameGenSourcePeriod * 0.8f + period * 0.2f : period;
+    }
+    frameGenLastSourceTime = now;
+    frameGenBatchSize = std::max<size_t>(frameGenOutputs.size(), 1);
     
     // Keep latency bounded: at most one earlier batch may still be waiting.
     while (frameGenQueue.size() > frameGenOutputs.size()) {
@@ -536,6 +559,21 @@ void DisplayX::presentFrameGenOutput(ASurfaceTransaction *transaction) {
         frameGenPending = false;
         return;
     }
+    
+    // Show the batch evenly across the game's frame interval: at 30 fps on a
+    // 120 Hz panel, 2x means one frame every second vsync, not two frames on
+    // back-to-back vsyncs and then a gap. A backlog goes out without waiting.
+    int64_t now = getCurrentTimeNanos();
+    if (frameGenSourcePeriod > 0.0f && frameGenQueue.size() <= frameGenBatchSize && frameGenLastPresentTime > 0) {
+        float refresh = xServer->refreshRate > 1.0f ? xServer->refreshRate : 60.0f;
+        float halfVsync = 500000000.0f / refresh;
+        float target = frameGenSourcePeriod / (float)frameGenBatchSize;
+        if ((float)(now - frameGenLastPresentTime) + halfVsync < target) {
+            frameGenPending = true;
+            return;
+        }
+    }
+    frameGenLastPresentTime = now;
     
     FrameGenOutput output = frameGenQueue.front();
     frameGenQueue.pop_front();
@@ -618,7 +656,7 @@ void DisplayX::presentThreadLoop() {
                 pfnASurfaceTransactionSetBuffer(presentTransaction, window->control, nullptr, presentRequest->sync_fence);
             }
             else {
-                if (frameGenOn && drawable->isDisplayX && queueFrameGenOutputs(presentRequest.get()))
+                if (frameGenOn && (drawable->isDisplayX || drawable->isDirectContent) && queueFrameGenOutputs(presentRequest.get()))
                     continue;
                 
                 if (effectComposer->isSuitableForColorSwap(drawable)) {

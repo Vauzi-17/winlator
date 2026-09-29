@@ -127,6 +127,56 @@
                 android:visibility="visible" />   
         </LinearLayout>
 
+        <!-- Frame generation runs in DisplayX only, so it sits under it, folded. -->
+        <LinearLayout
+            android:id="@+id/LLFrameGenSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/LLFrameGenHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/IVFrameGenExpand"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginRight="8dp"
+                    android:src="@drawable/icon_list_item_folded" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/frame_generation"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/TVFrameGenSummary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/LLFrameGeneration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="32dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <include layout="@layout/frame_generation_fields" />
+            </LinearLayout>
+        </LinearLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -736,23 +786,6 @@
                     android:text="@string/vkbasalt" />
             </FrameLayout>
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" >
-
-                <LinearLayout
-                    android:id="@+id/LLFrameGeneration"
-                    style="@style/FieldSet" >
-
-                    <include layout="@layout/frame_generation_fields" />
-                </LinearLayout>
-
-                <TextView
-                    style="@style/FieldSetLabel"
-                    android:background="#ffffff"
-                    android:text="@string/frame_generation" />
-            </FrameLayout>
 
             <TextView
                 android:layout_width="wrap_content"

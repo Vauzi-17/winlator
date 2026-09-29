@@ -15,6 +15,7 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.SeekBar;
@@ -128,11 +129,28 @@ public class ShortcutSettingsDialog extends ContentDialog {
             vDisplayDriverConfig.setTag(shortcut.getExtra("eglConfig", shortcut.container.getEGLConfig()));
         }
         
+        // Frame generation: folded under the display driver, shown for DisplayX only.
+        final View llFrameGenSection = findViewById(R.id.LLFrameGenSection);
+        final View llFrameGeneration = findViewById(R.id.LLFrameGeneration);
+        final ImageView ivFrameGenExpand = findViewById(R.id.IVFrameGenExpand);
+        final TextView tvFrameGenSummary = findViewById(R.id.TVFrameGenSummary);
+        final FrameGeneration frameGeneration = FrameGeneration.fromShortcut(shortcut);
+        final Runnable updateFrameGenSummary = () -> tvFrameGenSummary.setText(frameGeneration.getSummary(getContext()));
+        frameGeneration.bindViews(llFrameGeneration, updateFrameGenSummary);
+        updateFrameGenSummary.run();
+        findViewById(R.id.LLFrameGenHeader).setOnClickListener((v) -> {
+            boolean expand = llFrameGeneration.getVisibility() != View.VISIBLE;
+            llFrameGeneration.setVisibility(expand ? View.VISIBLE : View.GONE);
+            ivFrameGenExpand.setImageResource(expand ? R.drawable.icon_list_item_expanded : R.drawable.icon_list_item_folded);
+        });
+        llFrameGenSection.setVisibility(StringUtils.parseIdentifier(currentDisplayDriver).equals("displayx") ? View.VISIBLE : View.GONE);
+
         sDisplayDriver.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedItem = parent.getItemAtPosition(position).toString();
                 String identifier = StringUtils.parseIdentifier(selectedItem);
+                llFrameGenSection.setVisibility(identifier.equals("displayx") ? View.VISIBLE : View.GONE);
                 if (identifier.equals("displayx")) {
                     vDisplayDriverConfig.setVisibility(View.VISIBLE);
                     vDisplayDriverConfig.setOnClickListener((v) -> (new DisplayXConfigDialog(vDisplayDriverConfig)).show());
@@ -391,8 +409,6 @@ public class ShortcutSettingsDialog extends ContentDialog {
         cpuListViewSystem.setCheckedCPUList(shortcut.getExtra("systemCpuList", Container.getFallbackShortcutSystemCPUList()));
         final CheckBox cbRecordDiagnostics = findViewById(R.id.CBRecordDiagnostics);
         cbRecordDiagnostics.setChecked("1".equals(shortcut.getExtra(DiagnosticsRecorder.EXTRA_NEXT_RUN)));
-        final FrameGeneration frameGeneration = FrameGeneration.fromShortcut(shortcut);
-        frameGeneration.bindViews(findViewById(R.id.LLFrameGeneration), null);
 
         setOnConfirmCallback(() -> {
             String name = etName.getText().toString().trim();

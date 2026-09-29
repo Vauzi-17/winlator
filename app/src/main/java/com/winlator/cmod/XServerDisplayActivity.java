@@ -929,14 +929,18 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 if (diagnostics != null) {
                     if (report != null) message.append(getString(R.string.diagnostics_saved_to, report.getPath()));
                     else message.append(getString(R.string.diagnostics_not_saved));
-                    if (!tail.isEmpty()) message.append("\n\n").append(tail);
                 }
                 else message.append(getString(R.string.diagnostics_offer));
 
-                ContentDialog dialog = new ContentDialog(this);
+                ContentDialog dialog = new ContentDialog(this, R.layout.run_report_dialog);
                 dialog.setTitle(R.string.run_report);
                 dialog.setIcon(R.drawable.icon_debug);
-                dialog.setMessage(message.toString());
+                ((TextView)dialog.findViewById(R.id.TVRunReportMessage)).setText(message.toString());
+                if (!tail.isEmpty()) {
+                    TextView tvLog = dialog.findViewById(R.id.TVRunReportLog);
+                    tvLog.setText(tail);
+                    tvLog.setVisibility(View.VISIBLE);
+                }
                 dialog.setCancelable(false);
                 dialog.setOnConfirmCallback(this::exit);
 
